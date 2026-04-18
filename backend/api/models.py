@@ -1,6 +1,7 @@
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin
 )
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -133,3 +134,99 @@ class User(AbstractBaseUser, PermissionsMixin):
         "Does the user have permissions to view the app `app_label`?"
         # Simplest possible answer: Yes, always
         return True
+    
+
+class LessonStatus(models.TextChoices):
+    """Статусы уроков"""
+    PLANNED = 'planned', _('Запланировано')
+    IN_PROGRESS = 'in_progress', _('В процессе')
+    COMPLETED = 'completed', _('Завершено')
+    CANCELLED = 'cancelled', _('Отменено')
+
+class Lesson(models.Model):
+    tutor = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='lessons_as_tutor',
+        limit_choices_to={'role': User.Role.TUTOR}
+    )
+    students = models.ManyToManyField(
+        User,
+        related_name='lessons_as_student',
+        limit_choices_to={'role': User.Role.STUDENT}
+    )
+    subject = models.CharField(_('предмет'), max_length=200)
+    start_time = models.DateTimeField(_('время начала'))
+    end_time = models.DateTimeField(_('время окончания'))
+    
+    status = models.CharField(
+        _('статус'),
+        max_length=20,
+        choices=LessonStatus.choices,
+        default=LessonStatus.PLANNED
+    )
+    meeting_url = models.URLField(
+        _('ссылка на встречу'), 
+        max_length=500, 
+        blank=True, 
+        null=True
+    )
+    created_at = models.DateTimeField(_('создан'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('обновлен'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('урок')
+        verbose_name_plural = _('уроки')
+        ordering = ['-start_time']
+
+
+class InvitationStatus(models.TextChoices):
+    PENDING = 'pending', _('Ожидает')
+    ACTIVE = 'active', _('Активна')
+    REJECTED = 'rejected', _('Отклонена')
+
+class TutorStudent(models.Model):
+    tutor = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='assigned_students',
+        limit_choices_to={'role': User.Role.TUTOR}
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='assigned_tutors',
+        limit_choices_to={'role': User.Role.STUDENT}
+    )
+    subject = models.CharField(_('предмет'), max_length=200, blank=True, null=True)
+    status = models.CharField(
+        _('статус связи'),
+        max_length=20,
+        choices=InvitationStatus.choices,
+        default=InvitationStatus.PENDING
+    )
+    created_at = models.DateTimeField(_('дата привязки'), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('связь репетитор-ученик')
+        verbose_name_plural = _('связи репетитор-ученик')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tutor', 'student'],
+                name='unique_tutor_student_pair'
+            )
+        ]
+
+    def clean(self):
+        if self.tutor.role != User.Role.TUTOR:
+            raise ValidationError({'tutor': _('Пользователь должен быть репетитором.')})
+        if self.student.role != User.Role.STUDENT:
+            raise ValidationError({'student': _('Пользователь должен быть учеником.')})
+        super().clean()
+
+    def __str__(self):
+        return f"{self.tutor.get_full_name()} ↔ {self.student.get_full_name()}"
+
+
+
+

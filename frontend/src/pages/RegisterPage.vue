@@ -6,6 +6,8 @@ import { useNotificationsStore } from '../stores/notifications'
 import { ROLE_LABEL, type Role } from '../types/roles'
 import { useStudentsStore } from '../stores/students'
 import { useScheduleStore } from '../stores/schedule'
+import { registerUser } from '../api/auth'
+import { toApiError } from '../api/http'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,6 +25,8 @@ const email = ref('')
 const password = ref('')
 const subject = ref('')
 const showPassword = ref(false)
+const submitting = ref(false)
+const formError = ref('')
 
 // Валидация
 const errors = ref<{
@@ -121,16 +125,17 @@ const redirectTo = () => {
   return null
 }
 
-function submit() {
+async function submit() {
   if (!validateAll()) return
+  formError.value = ''
+  submitting.value = true
 
   const cleanName = name.value.trim()
   const cleanSurname = surname.value.trim()
   const cleanEmail = email.value.trim()
-  // Пароль будет использоваться при реальной регистрации
+  const cleanPassword = password.value
   const cleanSubject = subject.value.trim()
 
-  // Сохраняем предмет во временное хранилище (только для тьютора)
   if (selectedRole.value === 'tutor' && cleanSubject) {
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('user_subject', cleanSubject)
@@ -141,18 +146,31 @@ function submit() {
     }
   }
 
-  auth.loginAs({
-    role: selectedRole.value,
-    name: `${cleanSurname} ${cleanName}`.trim(),
-    email: cleanEmail,
-  })
+  try {
+    await registerUser({
+      email: cleanEmail,
+      first_name: cleanName,
+      last_name: cleanSurname,
+      password: cleanPassword,
+      role: selectedRole.value,
+    })
+    await auth.loginWithPassword(cleanEmail, cleanPassword)
+    const role = auth.role
+    if (!role) {
+      formError.value = 'Не удалось определить роль пользователя'
+      return
+    }
+    notifications.seedForRole(role)
+    students.seedForRole(role)
+    schedule.seedForRole(role)
 
-  notifications.seedForRole(selectedRole.value)
-  students.seedForRole(selectedRole.value)
-  schedule.seedForRole(selectedRole.value)
-
-  const target = redirectTo() ?? `/app/${selectedRole.value}`
-  router.push(target)
+    const target = redirectTo() ?? `/app/${role}`
+    await router.push(target)
+  } catch (err) {
+    formError.value = toApiError(err).message
+  } finally {
+    submitting.value = false
+  }
 }
 
 function togglePasswordVisibility() {
@@ -170,7 +188,7 @@ function togglePasswordVisibility() {
             <div>
               <div class="page-title" style="margin-bottom: 4px;">{{ appName }}</div>
               <div class="muted" style="font-weight: 700;">
-                Регистрация (MVP-заглушка)
+                Регистрация
               </div>
             </div>
             <button class="btn" type="button" @click="$router.push('/login')">
@@ -199,6 +217,8 @@ function togglePasswordVisibility() {
               {{ ROLE_LABEL.tutor }}
             </button>
           </div>
+
+          <div v-if="formError" class="form-error" role="alert">{{ formError }}</div>
 
           <form class="form" @submit.prevent="submit">
             <!-- Имя -->
@@ -322,14 +342,11 @@ function togglePasswordVisibility() {
             <button 
               class="btn btn-primary btn-submit" 
               type="submit"
+              :disabled="submitting"
             >
-              Создать аккаунт
+              {{ submitting ? 'Создание…' : 'Создать аккаунт' }}
             </button>
           </form>
-
-          <div class="muted" style="margin-top: 10px;">
-            Позже тут будет реальная регистрация, оплата и подтверждения.
-          </div>
         </div>
       </div>
     </div>
@@ -604,6 +621,23 @@ function togglePasswordVisibility() {
 
 .btn-submit:active {
   transform: translateY(0);
+}
+
+.form-error {
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Стили для кнопок ролей */

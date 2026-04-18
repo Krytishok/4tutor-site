@@ -122,7 +122,7 @@ router.beforeEach((to) => {
   const requiresAuth = to.meta.requiresAuth === true
   const targetRole = to.meta.role as Role | undefined
 
-  if (to.path === '/login' && auth.isAuthed && auth.role) {
+  if ((to.path === '/login' || to.path === '/register') && auth.isAuthed && auth.role) {
     return roleToDefaultPath(auth.role)
   }
 

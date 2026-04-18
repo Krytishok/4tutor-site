@@ -21,6 +21,7 @@ services:
       - ./backend/.env
     environment:
       - POSTGRES_HOST=postgres
+      - PYTHONUNBUFFERED=1
     command: >
       sh -c "pip install -r requirements.txt &&
              python manage.py makemigrations &&

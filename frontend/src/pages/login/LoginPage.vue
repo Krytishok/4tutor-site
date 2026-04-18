@@ -5,8 +5,8 @@ import { useAuthStore } from '../../stores/auth'
 import { useNotificationsStore } from '../../stores/notifications'
 import { useStudentsStore } from '../../stores/students'
 import { useScheduleStore } from '../../stores/schedule'
-import type { Role } from '../../types/roles'
 import { ROLE_NAV } from '../../types/roles'
+import { toApiError } from '../../api/http'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,11 +17,11 @@ const schedule = useScheduleStore()
 
 const appName = import.meta.env.VITE_APP_NAME ?? '4tutor'
 
-// Фиксированная роль для входа (позже будет определяться из БД)
-const selectedRole = ref<Role>('tutor')
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const submitting = ref(false)
+const formError = ref('')
 
 // Валидация
 const errors = ref<{
@@ -88,27 +88,32 @@ function togglePasswordVisibility() {
   showPassword.value = !showPassword.value
 }
 
-function submit() {
+async function submit() {
   if (!validateAll()) return
-
+  formError.value = ''
+  submitting.value = true
   const cleanEmail = email.value.trim()
-  //const cleanPassword = password.value.trim()
+  const cleanPassword = password.value
 
-  // Здесь будет реальная авторизация с проверкой пароля
-  // Пока используем заглушку для MVP
-  auth.loginAs({
-    role: selectedRole.value,
-    name: 'Пользователь', // Временно, пока нет данных из БД
-    email: cleanEmail,
-  })
+  try {
+    await auth.loginWithPassword(cleanEmail, cleanPassword)
+    const role = auth.role
+    if (!role) {
+      formError.value = 'Не удалось определить роль пользователя'
+      return
+    }
+    notifications.seedForRole(role)
+    students.seedForRole(role)
+    schedule.seedForRole(role)
 
-  notifications.seedForRole(selectedRole.value)
-  students.seedForRole(selectedRole.value)
-  schedule.seedForRole(selectedRole.value)
-
-  const target =
-    redirectTo() ?? ROLE_NAV[selectedRole.value]?.[0]?.to ?? `/app/${selectedRole.value}`
-  router.push(target)
+    const target =
+      redirectTo() ?? ROLE_NAV[role]?.[0]?.to ?? `/app/${role}`
+    await router.push(target)
+  } catch (err) {
+    formError.value = toApiError(err).message
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -129,10 +134,12 @@ function submit() {
         </div>
 
         <div class="card form-card">
-          <h2 class="card-title">Вход (MVP-заглушка)</h2>
+          <h2 class="card-title">Вход</h2>
           <p class="muted" style="margin: 0 0 20px 0;">
-            Войдите в свой аккаунт — это временно, пока нет реального API.
+            Войдите в аккаунт с email и паролем, указанными при регистрации.
           </p>
+
+          <div v-if="formError" class="form-error" role="alert">{{ formError }}</div>
 
           <form class="form" @submit.prevent="submit">
             <!-- Email -->
@@ -194,8 +201,9 @@ function submit() {
             <button 
               class="btn btn-primary btn-submit" 
               type="submit"
+              :disabled="submitting"
             >
-              Войти
+              {{ submitting ? 'Вход…' : 'Войти' }}
             </button>
           </form>
 
@@ -472,6 +480,23 @@ function submit() {
 
 .btn-submit:active {
   transform: translateY(0);
+}
+
+.form-error {
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .register-link {
