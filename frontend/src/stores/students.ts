@@ -1,82 +1,83 @@
 import { defineStore } from 'pinia'
-import type { Role } from '../types/roles'
-import type { Student, StudentGroupType } from '../types/domain'
-
-const demoStudents: Student[] = [
-  {
-    id: 's-anna',
-    name: 'Анна',
-    email: 'anna@example.com',
-    subject: 'Алгебра',
-    groupType: 'private',
-  },
-  {
-    id: 's-ilya',
-    name: 'Илья',
-    email: 'ilya@example.com',
-    subject: 'Русский',
-    groupType: 'private',
-  },
-  {
-    id: 's-masha',
-    name: 'Маша',
-    email: 'masha@example.com',
-    subject: 'Английский',
-    groupType: 'group',
-  },
-  {
-    id: 's-sergey',
-    name: 'Сергей',
-    email: 'sergey@example.com',
-    subject: 'Геометрия',
-    groupType: 'group',
-  },
-]
+import { actOnInvitation, inviteStudent, listPendingInvitations, listTutorStudentRelations } from '../api/invitations'
+import type { Student, TutorStudentRelation } from '../types/domain'
+import { toApiError } from '../api/http'
 
 export const useStudentsStore = defineStore('students', {
   state: () => ({
     students: [] as Student[],
+    relations: [] as TutorStudentRelation[],
+    pendingInvitations: [] as TutorStudentRelation[],
+    loading: false,
+    error: '' as string,
   }),
   getters: {
-    getByGroup: (state) => (group: StudentGroupType) => state.students.filter((s) => s.groupType === group),
     getAll: (state) => state.students,
     getById: (state) => (id: string) => state.students.find((s) => s.id === id) ?? null,
+    activeRelations: (state) => state.relations.filter((r) => r.status === 'active'),
+    activeStudents: (state) =>
+      state.relations
+        .filter((r) => r.status === 'active')
+        .map((r) => ({
+          id: String(r.student.id),
+          name: `${r.student.first_name} ${r.student.last_name}`.trim() || r.student.email,
+          email: r.student.email,
+          subject: r.subject ?? '',
+        })),
   },
   actions: {
-    seedForRole(role: Role) {
-      // MVP:
-      // - tutor sees all demo students
-      // - student sees only their own demo profile(s)
-      if (role === 'tutor') {
-        this.students = demoStudents
-      } else if (role === 'student') {
-        this.students = demoStudents.filter((s) => s.id === 's-anna' || s.id === 's-ilya')
-      } else {
-        this.students = []
+    seedForRole() {
+      this.students = []
+      this.relations = []
+      this.pendingInvitations = []
+      this.error = ''
+    },
+
+    async loadTutorStudents(status?: string) {
+      this.loading = true
+      this.error = ''
+      try {
+        this.relations = await listTutorStudentRelations(status)
+        this.students = this.activeStudents
+      } catch (err) {
+        this.error = toApiError(err).message
+      } finally {
+        this.loading = false
       }
     },
-    createStudent(payload: Omit<Student, 'id'>) {
-      const id = `s-${Math.random().toString(16).slice(2, 8)}`
-      this.students.push({ ...payload, id })
 
-      // API (later):
-      // await createStudentApi(payload)
+    async loadStudentPendingInvitations() {
+      this.loading = true
+      this.error = ''
+      try {
+        this.pendingInvitations = await listPendingInvitations()
+      } catch (err) {
+        this.error = toApiError(err).message
+      } finally {
+        this.loading = false
+      }
     },
-    updateStudent(id: string, payload: Omit<Student, 'id'>) {
-      const idx = this.students.findIndex((s) => s.id === id)
-      if (idx === -1) return
-      const existing = this.students[idx]
-      if (!existing) return
-      this.students[idx] = { ...existing, ...payload, id: existing.id }
 
-      // API (later):
-      // await updateStudentApi(id, payload)
+    async sendInvitation(studentEmail: string, subject?: string) {
+      this.error = ''
+      try {
+        await inviteStudent(studentEmail, subject)
+        await this.loadTutorStudents()
+      } catch (err) {
+        this.error = toApiError(err).message
+        throw err
+      }
     },
-    deleteStudent(id: string) {
-      this.students = this.students.filter((s) => s.id !== id)
 
-      // API (later):
-      // await deleteStudentApi(id)
+    async processInvitation(id: number, action: 'accept' | 'reject' | 'cancel') {
+      this.error = ''
+      try {
+        await actOnInvitation(id, action)
+        await this.loadStudentPendingInvitations()
+      } catch (err) {
+        this.error = toApiError(err).message
+        throw err
+      }
     },
   },
 })

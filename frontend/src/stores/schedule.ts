@@ -1,133 +1,92 @@
 import { defineStore } from 'pinia'
-import type { Role } from '../types/roles'
-import type { ScheduleEvent } from '../types/domain'
-import type { StudentGroupType } from '../types/domain'
-
-function startOfWeekMonday(date: Date) {
-  const d = new Date(date)
-  const day = d.getDay() // 0=Sun ... 6=Sat
-  const diff = (day === 0 ? -6 : 1) - day
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function withTime(date: Date, hours: number, minutes: number) {
-  const d = new Date(date)
-  d.setHours(hours, minutes, 0, 0)
-  return d
-}
+import { createLesson, deleteLesson, listLessons, updateLesson } from '../api/lessons'
+import type { Lesson, ScheduleEvent } from '../types/domain'
+import { toApiError } from '../api/http'
 
 export const useScheduleStore = defineStore('schedule', {
   state: () => ({
     events: [] as ScheduleEvent[],
+    loading: false,
+    error: '' as string,
   }),
   actions: {
-    seedForRole(role: Role) {
-      const weekStart = startOfWeekMonday(new Date())
+    seedForRole() {
+      this.events = []
+      this.error = ''
+    },
 
-      const make = (opts: {
-        id: string
-        groupType: StudentGroupType
-        studentIds: string[]
-        subject: string
-        dayOffset: number
-        startH: number
-        startM: number
-        endH: number
-        endM: number
-      }) => {
-        const day = new Date(weekStart)
-        day.setDate(day.getDate() + opts.dayOffset)
-        return {
-          id: opts.id,
-          groupType: opts.groupType,
-          studentIds: opts.studentIds,
-          subject: opts.subject,
-          startAt: withTime(day, opts.startH, opts.startM).toISOString(),
-          endAt: withTime(day, opts.endH, opts.endM).toISOString(),
-        } satisfies ScheduleEvent
+    lessonToEvent(lesson: Lesson): ScheduleEvent {
+      const tutorName = lesson.tutor
+        ? `${lesson.tutor.first_name} ${lesson.tutor.last_name}`.trim() || lesson.tutor.email
+        : undefined
+      // Безопасное извлечение ID учеников (могут прийти как объекты UserBrief или как примитивы)
+      const studentIds = lesson.students.map((s: any) => {
+        if (typeof s === 'object' && s !== null && 'id' in s) return String(s.id)
+        return String(s) // на случай, если сервер вернул просто число
+      })
+      return {
+        id: String(lesson.id),
+        groupType: studentIds.length > 1 ? 'group' : 'private',
+        studentIds,
+        subject: lesson.subject,
+        startAt: lesson.start_time,
+        endAt: lesson.end_time,
+        tutorId: lesson.tutor ? String(lesson.tutor.id) : undefined,
+        tutorName,
+        meetingUrl: lesson.meeting_url ?? undefined,
+        isRecurringWeekly: lesson.is_recurring_weekly,
+        status: lesson.status,
       }
-
-      // Demo data: tutor sees all students, student sees only their own.
-      const tutorEvents = [
-        make({
-          id: 'e1',
-          groupType: 'private',
-          studentIds: ['s-anna'],
-          subject: 'Алгебра',
-          dayOffset: 0,
-          startH: 18,
-          startM: 0,
-          endH: 19,
-          endM: 0,
-        }),
-        make({
-          id: 'e2',
-          groupType: 'private',
-          studentIds: ['s-ilya'],
-          subject: 'Русский',
-          dayOffset: 2,
-          startH: 17,
-          startM: 30,
-          endH: 18,
-          endM: 30,
-        }),
-        make({
-          id: 'e3',
-          groupType: 'group',
-          studentIds: ['s-masha', 's-sergey'],
-          subject: 'Английский',
-          dayOffset: 4,
-          startH: 19,
-          startM: 0,
-          endH: 20,
-          endM: 0,
-        }),
-        make({
-          id: 'e4',
-          groupType: 'private',
-          studentIds: ['s-anna'],
-          subject: 'Геометрия',
-          dayOffset: 1,
-          startH: 16,
-          startM: 0,
-          endH: 17,
-          endM: 0,
-        }),
-      ]
-
-      const studentEvents =
-        role === 'student'
-          ? tutorEvents.filter((e) => e.studentIds.includes('s-anna') || e.studentIds.includes('s-ilya')).slice(0, 3)
-          : tutorEvents
-
-      this.events = role === 'student' ? studentEvents : tutorEvents
     },
-    createEvent(payload: Omit<ScheduleEvent, 'id'>) {
-      const id = `e-${Math.random().toString(16).slice(2, 8)}`
-      this.events.push({ ...payload, id })
 
-      // API (later):
-      // await createScheduleEventApi(payload)
+    async loadEvents(params?: { from?: string; to?: string; weekdays_only?: boolean }) {
+      this.loading = true
+      this.error = ''
+      try {
+        const lessons = await listLessons(params)
+        this.events = lessons.map((l) => this.lessonToEvent(l))
+      } catch (err) {
+        this.error = toApiError(err).message
+      } finally {
+        this.loading = false
+      }
     },
-    updateEvent(id: string, payload: Omit<ScheduleEvent, 'id'>) {
+
+    async createEvent(payload: Omit<ScheduleEvent, 'id'>) {
+      this.error = ''
+      const lesson = await createLesson({
+        students: payload.studentIds.map(Number),
+        subject: payload.subject,
+        start_time: payload.startAt,
+        end_time: payload.endAt,
+        meeting_url: payload.meetingUrl ?? null,
+        is_recurring_weekly: payload.isRecurringWeekly ?? false,
+      })
+      this.events.unshift(this.lessonToEvent(lesson))
+    },
+
+    async updateEvent(id: string, payload: Omit<ScheduleEvent, 'id'>) {
+      this.error = ''
+      const lesson = await updateLesson(Number(id), {
+        students: payload.studentIds.map(Number),
+        subject: payload.subject,
+        start_time: payload.startAt,
+        end_time: payload.endAt,
+        meeting_url: payload.meetingUrl ?? null,
+        is_recurring_weekly: payload.isRecurringWeekly ?? false,
+        status: payload.status,
+      })
       const idx = this.events.findIndex((e) => e.id === id)
-      if (idx === -1) return
-      this.events[idx] = { ...this.events[idx], ...payload, id }
-
-      // API (later):
-      // await updateScheduleEventApi(id, payload)
+      if (idx >= 0) this.events[idx] = this.lessonToEvent(lesson)
     },
-    deleteEvent(id: string) {
-      this.events = this.events.filter((e) => e.id !== id)
 
-      // API (later):
-      // await deleteScheduleEventApi(id)
+    async deleteEvent(id: string) {
+      this.error = ''
+      await deleteLesson(Number(id))
+      this.events = this.events.filter((e) => e.id !== id)
     },
   },
   getters: {
     getEvents: (state) => state.events,
   },
 })
-

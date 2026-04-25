@@ -171,6 +171,10 @@ class Lesson(models.Model):
         blank=True, 
         null=True
     )
+    is_recurring_weekly = models.BooleanField(
+        _('еженедельное повторение'),
+        default=False
+    )
     created_at = models.DateTimeField(_('создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('обновлен'), auto_now=True)
 
@@ -184,6 +188,7 @@ class InvitationStatus(models.TextChoices):
     PENDING = 'pending', _('Ожидает')
     ACTIVE = 'active', _('Активна')
     REJECTED = 'rejected', _('Отклонена')
+    CANCELLED = 'cancelled', _('Отменена')
 
 class TutorStudent(models.Model):
     tutor = models.ForeignKey(

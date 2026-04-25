@@ -12,6 +12,7 @@ import TutorRemindersPage from '../pages/tutor/RemindersPage.vue'
 import TutorAnalyticsPage from '../pages/tutor/AnalyticsPage.vue'
 import StudentAssignmentsPage from '../pages/student/AssignmentsPage.vue'
 import StudentSchedulePage from '../pages/student/SchedulePage.vue'
+import StudentInvitationsPage from '../pages/student/InvitationsPage.vue'
 import StudentResultsPage from '../pages/student/ResultsPage.vue'
 import StudentRemindersPage from '../pages/student/RemindersPage.vue'
 // Parents removed: only tutor + student.
@@ -75,6 +76,11 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, role: 'tutor' },
       },
 
+      {
+        path: 'student/invitations',
+        component: StudentInvitationsPage,
+        meta: { requiresAuth: true, role: 'student' },
+      },
       {
         path: 'student/assignments',
         component: StudentAssignmentsPage,

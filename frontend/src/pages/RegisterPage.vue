@@ -161,8 +161,8 @@ async function submit() {
       return
     }
     notifications.seedForRole(role)
-    students.seedForRole(role)
-    schedule.seedForRole(role)
+    students.seedForRole()
+    schedule.seedForRole()
 
     const target = redirectTo() ?? `/app/${role}`
     await router.push(target)

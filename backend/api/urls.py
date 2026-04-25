@@ -1,7 +1,9 @@
 from django.urls import path
 from .views import (
     RegisterView, UserProfileView, TutorInvitationCreateView,
-    StudentInvitationActionView, TutorStudentListView, LessonListCreateView, LessonRetrieveUpdateDestroyView)
+    StudentInvitationActionView, TutorStudentListView, LessonListCreateView, LessonRetrieveUpdateDestroyView,
+    StudentPendingInvitationsListView,
+)
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='auth_register'),
@@ -11,6 +13,7 @@ urlpatterns = [
     path('tutor-students/invite/', TutorInvitationCreateView.as_view(), name='invite-student'),
     path('tutor-students/<int:pk>/action/', StudentInvitationActionView.as_view(), name='student-action'),
     path('tutor-students/', TutorStudentListView.as_view(), name='tutor-student-list'),
+    path('tutor-students/pending/', StudentPendingInvitationsListView.as_view(), name='student-pending-invites'),
 
     # Уроки
     path('lessons/', LessonListCreateView.as_view(), name='lesson-list-create'),
