@@ -118,7 +118,9 @@ const recurringInstances = computed<ScheduleEvent[]>(() => {
       if (!alreadyExists) {
         instances.push({
           ...ev,
-          id: `${ev.id}_${instanceStart.toISOString()}`, // фиктивный ID для предотвращения редактирования
+          id: `${ev.id}_${instanceStart.toISOString()}`, // фиктивный ID
+          parentEventId: ev.id,                          // родительский ID
+          instanceDate: instanceStart.toISOString(),     // дата экземпляра
           startAt: instanceStart.toISOString(),
           endAt: instanceEnd.toISOString(),
         })
@@ -249,6 +251,8 @@ const weekLabel = computed(() => {
 
 <template>
   <div class="calendar">
+    <!-- ... весь UI без изменений ... -->
+    <!-- Важно: кликабельные события вызывают onSelect и больше нет ограничений -->
     <div class="calendar-toolbar">
       <div class="row" style="gap: 8px;">
         <button class="btn" type="button" @click="shiftWeek(-7)">←</button>
@@ -281,7 +285,6 @@ const weekLabel = computed(() => {
           </div>
 
           <div class="day-columns" :style="{ position: 'relative' }">
-            <!-- Единая линия текущего времени на всю ширину -->
             <div v-if="nowLineAllDays" class="now-line-all" :style="{ top: nowLineAllDays }" />
 
             <div
@@ -321,6 +324,7 @@ const weekLabel = computed(() => {
 </template>
 
 <style scoped>
+/* ... оригинальные стили без изменений ... */
 .calendar {
   display: flex;
   flex-direction: column;
@@ -358,7 +362,6 @@ const weekLabel = computed(() => {
   border-left: 1px solid rgba(229, 231, 235, 0.7);
 }
 
-/* Текущий день в шапке – мягкий зелёный */
 .day-header--today {
   background: #ecfdf5;
   border: 1px solid #6ee7b7;
@@ -416,14 +419,12 @@ const weekLabel = computed(() => {
   background-size: 100% var(--slot-h);
 }
 
-/* Текущий день в колонке */
 .day-column--today {
   background-color: rgba(167, 243, 208, 0.15);
   box-shadow: inset 0 0 0 2px rgba(52, 211, 153, 0.4);
   border-radius: 4px;
 }
 
-/* Линия текущего времени через все дни */
 .now-line-all {
   position: absolute;
   left: 0;

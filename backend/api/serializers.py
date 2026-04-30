@@ -3,7 +3,6 @@ from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework import serializers
 from django.utils import timezone
-from django.db.models import Q
 from .models import User, Lesson, TutorStudent, InvitationStatus
 
 
@@ -136,6 +135,8 @@ class LessonCreateSerializer(serializers.ModelSerializer):
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
         tutor = self.context['request'].user
+        is_recurring_new = attrs.get('is_recurring_weekly', False)
+
 
         if start_time and end_time and end_time <= start_time:
             raise serializers.ValidationError({'end_time': 'Время окончания должно быть позже времени начала.'})
@@ -147,13 +148,72 @@ class LessonCreateSerializer(serializers.ModelSerializer):
 
         # Проверка на пересечение уроков
         overlapping = Lesson.objects.filter(
-            Q(start_time__lt=end_time) & Q(end_time__gt=start_time)
-            )
+            tutor=tutor,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        )
 
         if self.instance:
             overlapping = overlapping.exclude(pk=self.instance.pk)
         if overlapping.exists():
             raise serializers.ValidationError('Это время пересекается с другим занятием.')
+        
+
+        recurring_lessons = Lesson.objects.filter(
+            tutor=tutor,
+            is_recurring_weekly=True
+        )
+        if self.instance:
+            recurring_lessons = recurring_lessons.exclude(pk=self.instance.pk)
+
+        if self.instance:
+            recurring_lessons = recurring_lessons.exclude(pk=self.instance.pk)
+
+        # Вспомогательная функция: пересекаются ли два временных интервала
+        def intervals_overlap(t1_start, t1_end, t2_start, t2_end):
+            return t1_start < t2_end and t1_end > t2_start
+
+        for rec in recurring_lessons:
+            rec_weekday = rec.start_time.weekday()
+            rec_start_time = rec.start_time.time()
+            rec_end_time = rec.end_time.time()
+
+            new_weekday = start_time.weekday()
+            new_start_time = start_time.time()
+            new_end_time = end_time.time()
+
+            if is_recurring_new:
+                if new_weekday == rec_weekday and intervals_overlap(
+                    new_start_time, new_end_time, rec_start_time, rec_end_time
+                ):
+                    raise serializers.ValidationError(
+                            f'Это время пересекается с разовым занятием '
+                            f'по {rec.subject}, которое проходит {rec.start_time.strftime("%A")} '
+)
+            else:
+                if new_weekday == rec_weekday and intervals_overlap(
+                    new_start_time, new_end_time, rec_start_time, rec_end_time
+                ):
+                    raise serializers.ValidationError(
+                        f'Это время пересекается с повторяющимся занятием '
+                        f'по {rec.subject}, которое проходит каждый {rec.start_time.strftime("%A")} '
+                        f'с {rec.start_time.time()} до {rec.end_time.time()}.'
+)
+
+        students = attrs.get('students')
+        if students:
+            active_ids = set(
+                TutorStudent.objects.filter(tutor=tutor, status='active')
+                .values_list('student_id', flat=True)
+            )
+            invalid = [str(s.id) for s in students if s.id not in active_ids]
+            if invalid:
+                raise serializers.ValidationError(
+                    f'Ученики с ID {invalid} не привязаны к вам.'
+                )
+
+
+
 
 
 

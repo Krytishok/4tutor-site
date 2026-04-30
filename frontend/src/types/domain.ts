@@ -58,6 +58,9 @@ export type ScheduleEvent = {
   meetingUrl?: string
   isRecurringWeekly?: boolean
   status?: 'planned' | 'in_progress' | 'completed' | 'cancelled'
+
+  parentEventId?: string
+  instanceDate?: string
 }
 
 export type StudentGroupType = 'private' | 'group'

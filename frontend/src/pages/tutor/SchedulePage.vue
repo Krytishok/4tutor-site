@@ -73,8 +73,7 @@ function openCreate() {
 }
 
 function openEdit(ev: ScheduleEvent) {
-  // Не открываем форму для фиктивных повторений
-  if (ev.id.includes('_')) return
+  // Разрешено для любых событий, в т.ч. экземпляров
   formMode.value = 'edit'
   form.value.subject = ev.subject
   const start = new Date(ev.startAt)
@@ -123,6 +122,11 @@ function selectedStudentNames(ev: ScheduleEvent) {
   return ev.studentIds.map((id) => studentsById.value[id] ?? `ID ${id}`)
 }
 
+// Возвращает ID, который нужно использовать для API (родительский, если есть)
+function effectiveEventId(ev: ScheduleEvent): string {
+  return ev.parentEventId ?? ev.id
+}
+
 async function submitForm() {
   apiError.value = ''
   const subject = form.value.subject.trim()
@@ -131,8 +135,10 @@ async function submitForm() {
   const start = buildLocalDateTime(form.value.startDate, form.value.startTime)
   const end = new Date(start.getTime() + form.value.durationMins * 60000)
 
-  // Проверка пересечений
-  const excludeId = formMode.value === 'edit' ? selectedEvent.value?.id : undefined
+  // Проверка пересечений (исключаем текущее событие по эффективному ID)
+  const excludeId = formMode.value === 'edit' && selectedEvent.value
+    ? effectiveEventId(selectedEvent.value)
+    : undefined
   if (hasTimeConflict(start, end, excludeId)) {
     apiError.value = 'Это время пересекается с другим занятием.'
     return
@@ -152,7 +158,9 @@ async function submitForm() {
     if (formMode.value === 'create') {
       await schedule.createEvent(payload)
     } else if (selectedEvent.value) {
-      await schedule.updateEvent(selectedEvent.value.id, payload)
+      // Для экземпляра используем родительский ID, чтобы изменить всю серию
+      const targetId = effectiveEventId(selectedEvent.value)
+      await schedule.updateEvent(targetId, payload)
     }
     closeForm()
     closeDetails()
@@ -168,10 +176,10 @@ function onSelectEvent(ev: ScheduleEvent) {
 
 async function confirmDelete() {
   if (!selectedEvent.value) return
-  // Не удаляем фиктивные повторения
-  if (selectedEvent.value.id.includes('_')) return
   try {
-    await schedule.deleteEvent(selectedEvent.value.id)
+    // Удаляем по родительскому ID для экземпляров, иначе по обычному
+    const targetId = effectiveEventId(selectedEvent.value)
+    await schedule.deleteEvent(targetId)
     closeDetails()
   } catch (err) {
     apiError.value = toApiError(err).message
@@ -198,6 +206,7 @@ async function confirmDelete() {
       <WeekCalendar :events="events" :students-by-id="studentsById" @select="onSelectEvent" />
     </div>
 
+    <!-- Детали занятия (могут быть экземпляром) -->
     <div v-if="isDetailsOpen && selectedEvent" class="modal-backdrop" @click="closeDetails" />
     <div v-if="isDetailsOpen && selectedEvent" class="modal" role="dialog" aria-modal="true">
       <div class="modal-header">
@@ -232,22 +241,8 @@ async function confirmDelete() {
       </div>
 
       <div class="row" style="margin-top: 12px;">
-        <button
-          v-if="!selectedEvent.id.includes('_')"
-          class="btn"
-          type="button"
-          @click="openEdit(selectedEvent)"
-        >
-          Изменить
-        </button>
-        <button
-          v-if="!selectedEvent.id.includes('_')"
-          class="btn btn-danger"
-          type="button"
-          @click="deleteConfirmOpen = true"
-        >
-          Удалить
-        </button>
+        <button class="btn" type="button" @click="openEdit(selectedEvent)">Изменить</button>
+        <button class="btn btn-danger" type="button" @click="deleteConfirmOpen = true">Удалить</button>
       </div>
 
       <div v-if="deleteConfirmOpen" class="confirm-box">
@@ -259,6 +254,7 @@ async function confirmDelete() {
       </div>
     </div>
 
+    <!-- Модалка создания/редактирования -->
     <div v-if="isFormOpen" class="modal-backdrop" @click="closeForm" />
     <div v-if="isFormOpen" class="modal" role="dialog" aria-modal="true">
       <div class="modal-header">
