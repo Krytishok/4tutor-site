@@ -15,6 +15,8 @@ import StudentSchedulePage from '../pages/student/SchedulePage.vue'
 import StudentInvitationsPage from '../pages/student/InvitationsPage.vue'
 import StudentResultsPage from '../pages/student/ResultsPage.vue'
 import StudentRemindersPage from '../pages/student/RemindersPage.vue'
+import TutorAssignmentDetailPage from '../pages/tutor/AssignmentDetailPage.vue'
+import StudentAssignmentDetailPage from '../pages/student/AssignmentDetailPage.vue'
 // Parents removed: only tutor + student.
 import { useAuthStore } from '../stores/auth'
 import { ROLE_NAV, type Role } from '../types/roles'
@@ -56,6 +58,11 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, role: 'tutor' },
       },
       {
+        path: 'tutor/assignments/:id',
+        component: TutorAssignmentDetailPage,
+        meta: { requiresAuth: true, role: 'tutor' },
+      },
+      {
         path: 'tutor/assignments',
         component: TutorAssignmentsPage,
         meta: { requiresAuth: true, role: 'tutor' },
@@ -82,10 +89,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, role: 'student' },
       },
       {
+        path: 'student/assignments/:id',
+        component: StudentAssignmentDetailPage,
+        meta: { requiresAuth: true, role: 'student' },
+      },
+      {
         path: 'student/assignments',
         component: StudentAssignmentsPage,
         meta: { requiresAuth: true, role: 'student' },
       },
+      
       {
         path: 'student/schedule',
         component: StudentSchedulePage,

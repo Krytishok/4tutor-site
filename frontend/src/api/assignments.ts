@@ -1,0 +1,90 @@
+// src/api/assignments.ts
+
+import { http } from './http'   // убрали toApiError – не используется
+import type {
+  Assignment,
+  AssignmentListItem,
+  AssignmentFile,
+  StudentAssignment,
+  StudentAssignmentListItem,
+  SubmissionFile,
+  AssignStudentsPayload,
+} from '@/types/assignments'
+
+function multipartPost<T>(url: string, formData: FormData): Promise<T> {
+  return http.post<T>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data)
+}
+
+// ---------- Задания ----------
+export function getAssignments(): Promise<AssignmentListItem[]> {
+  return http.get<AssignmentListItem[]>('/v1/assignments/').then(res => res.data)
+}
+
+export function getAssignmentDetail(id: number): Promise<Assignment> {
+  return http.get<Assignment>(`/v1/assignments/${id}/`).then(res => res.data)
+}
+
+export function createAssignment(payload: {
+  title: string
+  description?: string
+  subject?: string
+  files?: File[]
+  students?: number[]
+  deadline?: string
+}): Promise<Assignment> {
+  const fd = new FormData()
+  fd.append('title', payload.title)
+  if (payload.description) fd.append('description', payload.description)
+  if (payload.subject) fd.append('subject', payload.subject)
+  if (payload.files) payload.files.forEach(f => fd.append('files', f))
+  if (payload.students) payload.students.forEach(id => fd.append('students', String(id)))
+  if (payload.deadline) fd.append('deadline', payload.deadline)
+  return multipartPost<Assignment>('v1/assignments/', fd)
+}
+
+export function uploadAssignmentFile(assignmentId: number, file: File): Promise<AssignmentFile> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post<AssignmentFile>(`/v1/assignments/${assignmentId}/upload-file/`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data)
+}
+
+export function assignStudentsToAssignment(
+  assignmentId: number,
+  payload: AssignStudentsPayload,
+): Promise<{ assigned: { student_id: number; status: string }[]; errors: any[] }> {
+  return http.post(`/v1/assignments/${assignmentId}/assign-students/`, payload).then(res => res.data)
+}
+
+// ---------- StudentAssignment ----------
+export function getStudentAssignments(): Promise<StudentAssignmentListItem[]> {
+  return http.get<StudentAssignmentListItem[]>('/v1/assignments/student-assignments/').then(res => res.data)
+}
+
+export function getStudentAssignmentDetail(pk: number): Promise<StudentAssignment> {
+  return http.get<StudentAssignment>(`/v1/assignments/student-assignments/${pk}/`).then(res => res.data)
+}
+
+export function submitAssignment(pk: number): Promise<{ status: string }> {
+  return http.patch(`/v1/assignments/student-assignments/${pk}/`, { submit: true }).then(res => res.data)
+}
+
+export function gradeAssignment(pk: number, grade: number, comment: string): Promise<StudentAssignment> {
+  return http.patch<StudentAssignment>(`/v1/assignments/student-assignments/${pk}/`, {
+    grade,
+    tutor_comment: comment,
+  }).then(res => res.data)
+}
+
+export function uploadSubmissionFile(studentAssignmentId: number, file: File): Promise<SubmissionFile> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post<SubmissionFile>(
+    `/v1/assignments/student-assignments/${studentAssignmentId}/upload/`,
+    fd,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  ).then(res => res.data)
+}
