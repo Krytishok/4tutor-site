@@ -205,7 +205,6 @@ class AssignStudentsSerializer(serializers.Serializer):
             student_ids.append(student_id)
             validated.append({'student_id': student_id, 'deadline': deadline})
         # Проверяем, что все ученики привязаны к текущему репетитору
-        from .models import TutorStudent  # импорт здесь или в начале файла
         tutor = self.context['request'].user
         active_student_ids = set(
             TutorStudent.objects.filter(

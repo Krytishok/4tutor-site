@@ -159,32 +159,57 @@ class AssignmentFileUploadView(generics.CreateAPIView):
 
 # assignments/views.py
 
-class AssignmentAssignStudentsView(generics.GenericAPIView):
+class AssignmentAssignStudentsView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsTutor]
     serializer_class = AssignStudentsSerializer
 
-    def post(self, request):
-        assignment = get_object_or_404(Assignment, pk=self.kwargs['pk'], tutor=request.user)
+    def create(self, request, *args, **kwargs):
+        # Получаем задание и проверяем, что оно принадлежит репетитору
+        assignment = get_object_or_404(
+            Assignment,
+            pk=self.kwargs['pk'],
+            tutor=request.user
+        )
+
+        # Валидация входных данных
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        assignments_data = serializer.validated_data['assignments_data']
 
         assigned = []
-        errors = []
-        for item in serializer.validated_data['assignments_data']:
+        skipped_student_ids = []
+
+        # Создаём назначения, пропуская уже существующие
+        for item in assignments_data:
             student_id = item['student_id']
             deadline = item['deadline']
-            try:
-                # Используем update_or_create, чтобы можно было перезаписать дедлайн
-                sa, created = StudentAssignment.objects.update_or_create(
-                    assignment=assignment,
-                    student_id=student_id,
-                    defaults={'deadline': deadline}
-                )
-                assigned.append({'student_id': student_id, 'status': 'created' if created else 'updated'})
-            except IntegrityError:
-                errors.append({'student_id': student_id, 'error': 'Ошибка при создании назначения'})
+
+            if StudentAssignment.objects.filter(
+                assignment=assignment,
+                student_id=student_id
+            ).exists():
+                skipped_student_ids.append(student_id)
+                continue
+
+            student_assignment = StudentAssignment.objects.create(
+                assignment=assignment,
+                student_id=student_id,
+                deadline=deadline
+            )
+            assigned.append(student_assignment)
+
+        # Сериализуем созданные назначения для ответа
+        output_serializer = StudentAssignmentListSerializer(
+            assigned,
+            many=True
+        )
 
         return Response(
-            {'assigned': assigned, 'errors': errors},
-            status=status.HTTP_200_OK
+            {
+                'assigned': output_serializer.data,
+                'assigned_count': len(assigned),
+                'skipped_student_ids': skipped_student_ids,
+                'skipped_count': len(skipped_student_ids),
+            },
+            status=status.HTTP_201_CREATED
         )
