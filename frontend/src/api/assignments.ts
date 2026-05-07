@@ -1,6 +1,6 @@
 // src/api/assignments.ts
 
-import { http } from './http'   // убрали toApiError – не используется
+import { http } from './http'  
 import type {
   Assignment,
   AssignmentListItem,

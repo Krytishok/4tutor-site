@@ -4,6 +4,12 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from django.utils.text import get_valid_filename
+from transliterate import translit
+
+import os
+import unicodedata
+
 User = settings.AUTH_USER_MODEL
 
 class Assignment(models.Model):
@@ -30,9 +36,20 @@ class Assignment(models.Model):
         return f'[{self.subject}] {self.title}'
 
 
+def sanitize_filename(filename):
+    """Нормализует имя файла: сохраняет кириллицу, но убирает опасные символы"""
+    # Нормализация Unicode (NFC)
+    filename = unicodedata.normalize('NFC', filename)
+    # Оставляем только безопасные символы
+    name, ext = os.path.splitext(filename)
+    # Заменяем пробелы и спецсимволы на подчёркивание, но сохраняем кириллицу
+    safe_name = ''.join(c if c.isalnum() or c in '._-()[] ' or ord(c) > 127 else '_' for c in name)
+    return get_valid_filename(translit(safe_name, 'ru', reversed=True)) + ext
+
+
 def assignment_file_path(instance, filename):
-    # Файлы будут сохраняться в media/assignments/<assignment_id>/<filename>
-    return f'assignments/{instance.assignment.id}/{filename}'
+    safe_filename = sanitize_filename(filename)
+    return f'assignments/{instance.assignment.id}/{safe_filename}'
 
 class AssignmentFile(models.Model):
     """Файл, прикреплённый к заданию (материалы ДЗ)"""
@@ -107,7 +124,8 @@ class StudentAssignment(models.Model):
 
 
 def submission_file_path(instance, filename):
-    return f'submissions/{instance.student_assignment.id}/{filename}'
+    safe_filename = sanitize_filename(filename)
+    return f'submissions/{instance.student_assignment.id}/{safe_filename}'
 
 class SubmissionFile(models.Model):
     """Файл с ответом ученика"""

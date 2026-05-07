@@ -4,8 +4,8 @@ export interface Assignment {
   id: number
   tutor: { id: number; email: string; first_name: string; last_name: string }
   title: string
-  description: string
   subject: string
+  description: string
   created_at: string
   updated_at: string
   files: AssignmentFile[]
@@ -31,8 +31,8 @@ export type StudentAssignmentStatus = 'assigned' | 'submitted' | 'graded'
 
 export interface StudentAssignment {
   id: number
-  assignment: number
-  assignment_title?: string // для списка
+  assignment: Assignment      
+  assignment_title?: string    
   student: { id: number; email: string; first_name: string; last_name: string }
   deadline: string
   status: StudentAssignmentStatus
@@ -44,7 +44,7 @@ export interface StudentAssignment {
 
 export interface StudentAssignmentListItem {
   id: number
-  assignment: number
+  assignment: number               
   assignment_title: string
   student: { id: number; email: string; first_name: string; last_name: string }
   deadline: string

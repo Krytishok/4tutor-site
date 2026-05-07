@@ -25,10 +25,11 @@ class AssignmentListSerializer(serializers.ModelSerializer):
     """Краткое представление задания в списке"""
     tutor = UserBriefSerializer(read_only=True)
     files_count = serializers.SerializerMethodField()
+    files = AssignmentFileSerializer(many=True, read_only=True)
 
     class Meta:
         model = Assignment
-        fields = ('id', 'tutor', 'title', 'subject', 'created_at', 'files_count')
+        fields = ('id', 'tutor', 'title', 'subject', 'description', 'created_at', 'files_count', 'files')
 
     def get_files_count(self, obj):
         return obj.files.count()
@@ -51,7 +52,12 @@ class AssignmentDetailSerializer(serializers.ModelSerializer):
         qs = obj.student_assignments.select_related('student')
         if request and request.user.role == 'student':
             qs = qs.filter(student=request.user)
-        return StudentAssignmentListSerializer(qs, many=True, context=self.context).data
+            return StudentAssignmentListSerializer(qs, many=True, context=self.context).data
+        else:
+            # Для репетитора — полный сериализатор с файлами и комментариями
+            return StudentAssignmentDetailSerializer(qs, many=True, context=self.context).data
+        
+    
 
 
 class AssignmentCreateUpdateSerializer(serializers.ModelSerializer):
@@ -75,7 +81,6 @@ class AssignmentCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
         help_text='Общий дедлайн для всех указанных учеников'
     )
-    # Можно сделать индивидуальные дедлайны через отдельный эндпоинт
 
     class Meta:
         model = Assignment
@@ -172,12 +177,16 @@ class SubmissionFileSerializer(serializers.ModelSerializer):
         read_only_fields = ('uploaded_at',)
 
 
+
 class GradeAndCommentSerializer(serializers.ModelSerializer):
     """Используется репетитором для выставления оценки и комментария"""
     class Meta:
         model = StudentAssignment
         fields = ('grade', 'tutor_comment', 'status')
-        extra_kwargs = {'status': {'read_only': True}}
+        extra_kwargs = {
+            'grade': {'required': False},
+            'tutor_comment': {'required': False}
+        }
 
 
 
