@@ -63,6 +63,16 @@ class AssignmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Assignment.objects.prefetch_related('files', 'student_assignments__student')
+    
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        # Возвращаем полный детальный объект
+        detail_serializer = AssignmentDetailSerializer(instance, context={'request': request})
+        return Response(detail_serializer.data)
 
 
 class StudentAssignmentListView(generics.ListAPIView):

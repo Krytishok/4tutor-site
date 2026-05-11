@@ -26,6 +26,7 @@ class Assignment(models.Model):
     subject = models.CharField('Предмет', max_length=200, blank=True)
     created_at = models.DateTimeField('Создано', auto_now_add=True)
     updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    max_grade = models.PositiveSmallIntegerField('Максимальная оценка', blank=True, default=10)
 
     class Meta:
         verbose_name = 'Задание'

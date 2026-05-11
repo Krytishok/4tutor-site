@@ -8,6 +8,7 @@ export interface Assignment {
   description: string
   created_at: string
   updated_at: string
+  max_grade: number
   files: AssignmentFile[]
   student_assignments: StudentAssignment[]
 }

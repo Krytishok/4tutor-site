@@ -26,6 +26,10 @@ export function getAssignmentDetail(id: number): Promise<Assignment> {
   return http.get<Assignment>(`/v1/assignments/${id}/`).then(res => res.data)
 }
 
+export function deleteAssignment(id: number): Promise<void> {
+  return http.delete(`/v1/assignments/${id}/`).then(() => undefined)
+}
+
 export function createAssignment(payload: {
   title: string
   description?: string
@@ -87,4 +91,35 @@ export function uploadSubmissionFile(studentAssignmentId: number, file: File): P
     fd,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   ).then(res => res.data)
+}
+
+export function updateAssignment(
+  id: number,
+  payload: {
+    title?: string
+    description?: string
+    subject?: string
+    max_grade?: number
+    files?: File[]
+    remove_file_ids?: number[]
+    students?: { student_id: number; deadline: string }[]
+  }
+): Promise<Assignment> {
+  const fd = new FormData()
+  if (payload.title !== undefined) fd.append('title', payload.title)
+  if (payload.description !== undefined) fd.append('description', payload.description)
+  if (payload.subject !== undefined) fd.append('subject', payload.subject)
+  if (payload.max_grade !== undefined) fd.append('max_grade', String(payload.max_grade))
+  if (payload.files) payload.files.forEach(f => fd.append('files', f))
+  if (payload.remove_file_ids) {
+    payload.remove_file_ids.forEach(id => fd.append('remove_file_ids', String(id)))
+  }
+  if (payload.students) {
+    // Передаём как JSON-строку
+    fd.append('students', JSON.stringify(payload.students))
+  }
+
+  return http.patch<Assignment>(`/v1/assignments/${id}/`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(res => res.data)
 }

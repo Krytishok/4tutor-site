@@ -1,7 +1,6 @@
-from datetime import timezone
-
+from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
 from .models import Assignment, AssignmentFile, StudentAssignment, SubmissionFile
 from api.models import TutorStudent
@@ -43,7 +42,7 @@ class AssignmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Assignment
-        fields = ('id', 'tutor', 'title', 'description', 'subject',
+        fields = ('id', 'tutor', 'title', 'description', 'subject', 'max_grade',
                   'created_at', 'updated_at', 'files', 'student_assignments')
 
     def get_student_assignments(self, obj):
@@ -57,93 +56,111 @@ class AssignmentDetailSerializer(serializers.ModelSerializer):
             # Для репетитора — полный сериализатор с файлами и комментариями
             return StudentAssignmentDetailSerializer(qs, many=True, context=self.context).data
         
-    
+
 
 
 class AssignmentCreateUpdateSerializer(serializers.ModelSerializer):
-    """Сериализатор для создания/редактирования задания репетитором.
-    Позволяет сразу загрузить файлы и назначить учеников с дедлайнами.
-    """
     files = serializers.ListField(
         child=serializers.FileField(),
         write_only=True,
         required=False,
-        help_text='Список файлов для прикрепления'
     )
-    students = serializers.ListField(
+    students = serializers.JSONField(
+        write_only=True,
+        required=False,
+        help_text='JSON-массив объектов {"student_id": int, "deadline": "ISO8601"}'
+    )
+    remove_file_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False,
-        help_text='Список ID учеников для назначения'
     )
-    deadline = serializers.DateTimeField(
-        write_only=True,
-        required=False,
-        help_text='Общий дедлайн для всех указанных учеников'
-    )
+    max_grade = serializers.IntegerField(required=False, min_value=1, max_value=100)
 
     class Meta:
         model = Assignment
-        fields = ('title', 'description', 'subject', 'files', 'students', 'deadline')
+        fields = ('title', 'description', 'subject', 'max_grade',
+                  'remove_file_ids', 'files', 'students')
 
     def validate_students(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Должен быть массив.')
+
         tutor = self.context['request'].user
-        # Проверяем, что все ученики привязаны к репетитору
-        valid_ids = set(
+        valid_student_ids = set(
             TutorStudent.objects.filter(tutor=tutor, status='active')
             .values_list('student_id', flat=True)
         )
-        invalid = [uid for uid in value if uid not in valid_ids]
-        if invalid:
-            raise serializers.ValidationError(
-                f'Ученики с ID {invalid} не привязаны к вам или связь не активна.'
-            )
-        return value
+        validated = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError('Каждый элемент должен быть объектом.')
+            student_id = item.get('student_id')
+            deadline_str = item.get('deadline')
+            if not student_id:
+                raise serializers.ValidationError('student_id обязателен.')
+            if not deadline_str:
+                raise serializers.ValidationError('deadline обязателен.')
+            if student_id not in valid_student_ids:
+                raise serializers.ValidationError(
+                    f'Ученик с ID {student_id} не привязан к вам или связь не активна.'
+                )
 
-    def validate_deadline(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError('Дедлайн должен быть в будущем.')
-        return value
+            # Парсим deadline
+            deadline = parse_datetime(deadline_str)
+            if not deadline:
+                raise serializers.ValidationError(f'Некорректный формат даты: {deadline_str}')
+            if deadline <= timezone.now():
+                raise serializers.ValidationError('Дедлайн должен быть в будущем.')
+            validated.append({'student_id': student_id, 'deadline': deadline})
+        return validated
 
     def create(self, validated_data):
         files_data = validated_data.pop('files', [])
-        students_ids = validated_data.pop('students', [])
-        deadline = validated_data.pop('deadline', None)
+        students_data = validated_data.pop('students', [])
 
-        # Создаём задание
         assignment = Assignment.objects.create(**validated_data)
 
-        # Сохраняем файлы
         for f in files_data:
             AssignmentFile.objects.create(assignment=assignment, file=f)
 
-        # Назначаем ученикам
-        for student_id in students_ids:
-            try:
-                StudentAssignment.objects.create(
-                    assignment=assignment,
-                    student_id=student_id,
-                    deadline=deadline
-                )
-            except IntegrityError:
-                # Пара уже существует – игнорируем или можно выдать предупреждение
-                pass
-
+        for item in students_data:
+            StudentAssignment.objects.create(
+                assignment=assignment,
+                student_id=item['student_id'],
+                deadline=item['deadline']
+            )
         return assignment
 
     def update(self, instance, validated_data):
-        # Обновление основных полей
         instance.title = validated_data.get('title', instance.title)
         instance.description = validated_data.get('description', instance.description)
         instance.subject = validated_data.get('subject', instance.subject)
+        instance.max_grade = validated_data.get('max_grade', instance.max_grade)
         instance.save()
 
-        # Обработка новых файлов: просто добавляем, старые не трогаем
+        # Удаление файлов
+        remove_file_ids = validated_data.pop('remove_file_ids', [])
+        if remove_file_ids:
+            AssignmentFile.objects.filter(assignment=instance, id__in=remove_file_ids).delete()
+
+        # Добавление новых файлов
         files_data = validated_data.pop('files', [])
         for f in files_data:
             AssignmentFile.objects.create(assignment=instance, file=f)
-        return instance
 
+        # Полная замена назначений
+        if 'students' in validated_data:
+            students_data = validated_data.pop('students')
+            # удаляем старые назначения
+            instance.student_assignments.all().delete()
+            for item in students_data:
+                StudentAssignment.objects.create(
+                    assignment=instance,
+                    student_id=item['student_id'],
+                    deadline=item['deadline']
+                )
+        return instance
 
 class StudentAssignmentListSerializer(serializers.ModelSerializer):
     student = UserBriefSerializer(read_only=True)
@@ -187,6 +204,12 @@ class GradeAndCommentSerializer(serializers.ModelSerializer):
             'grade': {'required': False},
             'tutor_comment': {'required': False}
         }
+
+    def validate_grade(self, value):
+        max_grade = self.instance.assignment.max_grade
+        if value > max_grade:
+            raise serializers.ValidationError(f'Оценка не может быть больше {max_grade}.')
+        return value
 
 
 
