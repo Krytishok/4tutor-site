@@ -161,6 +161,13 @@ const handleDeleteStudent = async (sa: StudentAssignment) => {
   }
 }
 
+// Переход к проверке работы ученика
+const handleStudentRowClick = (sa: StudentAssignment) => {
+  if (sa.status === 'submitted' || sa.status === 'graded') {
+    router.push(`/app/tutor/submissions/${sa.id}`)
+  }
+}
+
 // Добавление учеников
 const showAddStudentsModal = ref(false)
 const selectedNewStudents = ref<string[]>([])
@@ -355,6 +362,8 @@ const handleDeleteAssignment = async () => {
                     v-for="sa in assignment.student_assignments"
                     :key="sa.id"
                     class="student-row"
+                    :class="{ 'clickable': sa.status === 'submitted' || sa.status === 'graded' }"
+                    @click="handleStudentRowClick(sa)"
                   >
                     <td class="student-name">
                       {{ sa.student.first_name }} {{ sa.student.last_name }}
@@ -366,7 +375,7 @@ const handleDeleteAssignment = async () => {
                         </span>
                         <button
                           class="btn btn-icon-only"
-                          @click="startEditDeadline(sa)"
+                          @click.stop="startEditDeadline(sa)"
                           title="Изменить дедлайн"
                         >
                           ✏️
@@ -381,14 +390,14 @@ const handleDeleteAssignment = async () => {
                           />
                           <button
                             class="btn btn-icon-only"
-                            @click="saveDeadline(sa)"
+                            @click.stop="saveDeadline(sa)"
                             title="Сохранить"
                           >
                             ✔️
                           </button>
                           <button
                             class="btn btn-icon-only"
-                            @click="cancelEditDeadline"
+                            @click.stop="cancelEditDeadline"
                             title="Отмена"
                           >
                             ✖️
@@ -412,7 +421,7 @@ const handleDeleteAssignment = async () => {
                     <td>
                       <button
                         class="btn btn-icon-only btn-danger-icon"
-                        @click="handleDeleteStudent(sa)"
+                        @click.stop="handleDeleteStudent(sa)"
                         title="Снять с задания"
                       >
                         🗑️
@@ -789,6 +798,15 @@ const handleDeleteAssignment = async () => {
 
 .student-row:last-child td {
   border-bottom: none;
+}
+
+.student-row.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.student-row.clickable:hover {
+  background-color: #f0f7ff;
 }
 
 .deadline-cell {
