@@ -22,6 +22,14 @@ export interface AssignmentListItem {
   files_count: number
 }
 
+export interface AssignmentFilterParams {
+  page?: number
+  page_size?: number
+  ordering?: string
+  subject?: string
+  title?: string
+}
+
 export interface AssignmentFile {
   id: number
   file: string // URL
@@ -52,6 +60,15 @@ export interface StudentAssignmentListItem {
   status: StudentAssignmentStatus
   grade: number | null
   submitted_at: string | null
+}
+
+export interface StudentAssignmentFilterParams {
+  page?: number
+  page_size?: number
+  ordering?: string
+  subject?: string
+  title?: string
+  status?: 'assigned' | 'submitted' | 'graded'
 }
 
 export interface SubmissionFile {

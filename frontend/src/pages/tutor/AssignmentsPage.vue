@@ -254,3 +254,108 @@ onMounted(fetchAssignments)
     </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.modal-header {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.modal-title {
+  margin: 0 0 6px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.modal-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.modal-form {
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label-icon {
+  font-size: 16px;
+}
+
+.input-lg {
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: var(--radius-md);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.file-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-outline:hover {
+  border-color: var(--muted);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.btn-lg {
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+}
+
+/* Анимация для кнопок */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+</style>
