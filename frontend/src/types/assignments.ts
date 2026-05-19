@@ -45,8 +45,9 @@ export interface StudentAssignment {
 
 export interface StudentAssignmentListItem {
   id: number
-  assignment: number               
+  assignment: number
   assignment_title: string
+  tutor: { id: number; email: string; first_name: string; last_name: string } // добавлено
   student: { id: number; email: string; first_name: string; last_name: string }
   deadline: string
   status: StudentAssignmentStatus

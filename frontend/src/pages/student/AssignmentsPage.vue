@@ -11,13 +11,13 @@ const items = ref<StudentAssignmentListItem[]>([])
 const loading = ref(false)
 const errorMsg = ref('')
 
-// Pagination state
+// Пагинация
 const currentPage = ref(1)
 const pageSize = ref(15)
 const totalItems = ref(0)
 const totalPages = ref(0)
 
-// Filter state
+// Фильтры
 const searchQuery = ref('')
 const subjectFilter = ref('')
 const deadlineBefore = ref('')
@@ -31,13 +31,12 @@ const fetch = async () => {
       page: currentPage.value,
       page_size: pageSize.value,
     }
-    
     if (searchQuery.value) filters.search = searchQuery.value
     if (subjectFilter.value) filters.subject = subjectFilter.value
     if (deadlineBefore.value) filters.deadline_before = deadlineBefore.value
     if (deadlineAfter.value) filters.deadline_after = deadlineAfter.value
     if (statusFilter.value) filters.status = statusFilter.value
-    
+
     const response = await getStudentAssignments(filters)
     items.value = response.results
     totalItems.value = response.pagination.total
@@ -88,35 +87,27 @@ onMounted(fetch)
     <h1 class="page-title">Мои задания</h1>
     <p class="muted">Задания от репетиторов</p>
 
-    <!-- Filters Section -->
-    <div class="card" style="margin-top: 20px;">
-      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>Фильтры</span>
-        <button class="btn btn-sm" @click="clearFilters" v-if="searchQuery || subjectFilter || deadlineBefore || deadlineAfter || statusFilter">
-          Сбросить
-        </button>
-      </div>
-      <div class="grid grid-cols-4" style="gap: 16px; margin-top: 16px;">
-        <div>
-          <label class="label">Поиск</label>
+    <!-- Компактный блок фильтров в одну строку (как у репетитора) -->
+    <div class="card" style="padding: 16px 20px; margin-top: 16px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;">
+        <div style="min-width: 160px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Поиск</label>
           <input v-model="searchQuery" class="input" placeholder="Название..." />
         </div>
-        <div>
-          <label class="label">Предмет</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Предмет</label>
           <input v-model="subjectFilter" class="input" placeholder="Алгебра..." />
         </div>
-        <div>
-          <label class="label">Дедлайн до</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Дедлайн до</label>
           <input v-model="deadlineBefore" type="date" class="input" />
         </div>
-        <div>
-          <label class="label">Дедлайн после</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Дедлайн после</label>
           <input v-model="deadlineAfter" type="date" class="input" />
         </div>
-      </div>
-      <div class="grid grid-cols-4" style="gap: 16px; margin-top: 16px;">
-        <div>
-          <label class="label">Статус</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Статус</label>
           <select v-model="statusFilter" class="input">
             <option value="">Все статусы</option>
             <option value="assigned">Назначено</option>
@@ -124,9 +115,19 @@ onMounted(fetch)
             <option value="graded">Проверено</option>
           </select>
         </div>
-      </div>
-      <div class="row" style="margin-top: 16px;">
-        <button class="btn btn-primary" @click="applyFilters">Применить фильтры</button>
+        <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 2px;">
+          <button class="btn btn-primary" @click="applyFilters" style="white-space: nowrap;">
+            Применить
+          </button>
+          <button
+            v-if="searchQuery || subjectFilter || deadlineBefore || deadlineAfter || statusFilter"
+            class="btn"
+            @click="clearFilters"
+            style="white-space: nowrap;"
+          >
+            Сбросить
+          </button>
+        </div>
       </div>
     </div>
 
@@ -136,35 +137,43 @@ onMounted(fetch)
 
     <div v-else class="card">
       <div class="card-title">Список заданий ({{ totalItems }} всего)</div>
-      <table class="table">
-        <thead>
-          <tr><th>Задание</th><th>Дедлайн</th><th>Статус</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="sa in items" :key="sa.id" @click="goToDetail(sa.id)" style="cursor:pointer;">
-            <td>{{ sa.assignment_title }}</td>
-            <td>{{ new Date(sa.deadline).toLocaleString() }}</td>
-            <td><span class="chip" :class="statusChip(sa.status)">{{ sa.status }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <!-- Pagination -->
+      <div style="overflow-x: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Задание</th>
+              <th>Репетитор</th>
+              <th>Дедлайн</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="sa in items" :key="sa.id" @click="goToDetail(sa.id)" style="cursor:pointer;">
+              <td>{{ sa.assignment_title }}</td>
+              <td>{{ sa.tutor.first_name }} {{ sa.tutor.last_name }}</td>
+              <td>{{ new Date(sa.deadline).toLocaleString() }}</td>
+              <td><span class="chip" :class="statusChip(sa.status)">{{ sa.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Пагинация -->
       <div class="row" style="justify-content: space-between; align-items: center; margin-top: 16px;">
         <div class="muted">
           Страница {{ currentPage }} из {{ totalPages }} ({{ totalItems }} заданий)
         </div>
         <div class="row" style="gap: 8px;">
-          <button 
-            class="btn" 
-            @click="changePage(currentPage - 1)" 
+          <button
+            class="btn"
+            @click="changePage(currentPage - 1)"
             :disabled="currentPage <= 1"
           >
             ← Назад
           </button>
-          <button 
-            class="btn" 
-            @click="changePage(currentPage + 1)" 
+          <button
+            class="btn"
+            @click="changePage(currentPage + 1)"
             :disabled="currentPage >= totalPages"
           >
             Вперёд →

@@ -1,13 +1,11 @@
 <!-- src/pages/tutor/AssignmentsPage.vue -->
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAssignments, createAssignment, type AssignmentFilters } from '@/api/assignments'
 import type { AssignmentListItem } from '@/types/assignments'
 import { toApiError } from '@/api/http'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import { listTutorStudentRelations } from '@/api/invitations'
-import type { TutorStudentRelation } from '@/types/domain'
 
 const router = useRouter()
 const assignments = ref<AssignmentListItem[]>([])
@@ -27,13 +25,8 @@ const subjectFilter = ref('')
 const deadlineBefore = ref('')
 const deadlineAfter = ref('')
 const statusFilter = ref('')
-const isFiltering = ref(false)
 
-// Student selection for assignment creation
-const availableStudents = ref<TutorStudentRelation[]>([])
-const selectedStudents = ref<number[]>([])
-const studentDeadlines = ref<Record<number, string>>({})
-
+// Form fields
 const formTitle = ref('')
 const formDescription = ref('')
 const formSubject = ref('')
@@ -47,13 +40,12 @@ const fetchAssignments = async () => {
       page: currentPage.value,
       page_size: pageSize.value,
     }
-    
     if (searchQuery.value) filters.search = searchQuery.value
     if (subjectFilter.value) filters.subject = subjectFilter.value
     if (deadlineBefore.value) filters.deadline_before = deadlineBefore.value
     if (deadlineAfter.value) filters.deadline_after = deadlineAfter.value
     if (statusFilter.value) filters.status = statusFilter.value
-    
+
     const response = await getAssignments(filters)
     assignments.value = response.results
     totalItems.value = response.pagination.total
@@ -65,29 +57,16 @@ const fetchAssignments = async () => {
   }
 }
 
-const fetchAvailableStudents = async () => {
-  try {
-    availableStudents.value = await listTutorStudentRelations('active')
-  } catch (e) {
-    console.error('Failed to load students:', e)
-  }
-}
-
 const handleCreate = async () => {
   if (!formTitle.value) return
   creating.value = true
   try {
-    const studentsPayload = selectedStudents.value.map(studentId => ({
-      student_id: studentId,
-      deadline: studentDeadlines.value[studentId] || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
-    }))
-    
     await createAssignment({
       title: formTitle.value,
       description: formDescription.value || undefined,
       subject: formSubject.value || undefined,
       files: formFiles.value.length ? formFiles.value : undefined,
-      students: studentsPayload.length ? studentsPayload : undefined,
+      // deadline и students не передаём
     })
     showCreateModal.value = false
     resetForm()
@@ -104,8 +83,6 @@ const resetForm = () => {
   formDescription.value = ''
   formSubject.value = ''
   formFiles.value = []
-  selectedStudents.value = []
-  studentDeadlines.value = {}
 }
 
 const onFileChange = (e: Event) => {
@@ -136,24 +113,6 @@ const changePage = (newPage: number) => {
   fetchAssignments()
 }
 
-const toggleStudent = (studentId: number) => {
-  const index = selectedStudents.value.indexOf(studentId)
-  if (index === -1) {
-    selectedStudents.value.push(studentId)
-    if (!studentDeadlines.value[studentId]) {
-      studentDeadlines.value[studentId] = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
-    }
-  } else {
-    selectedStudents.value.splice(index, 1)
-    delete studentDeadlines.value[studentId]
-  }
-}
-
-const openCreateModal = async () => {
-  await fetchAvailableStudents()
-  showCreateModal.value = true
-}
-
 onMounted(fetchAssignments)
 </script>
 
@@ -164,38 +123,30 @@ onMounted(fetchAssignments)
         <h1 class="page-title">Задания</h1>
         <p class="muted">Создавайте домашние задания и отслеживайте выполнение.</p>
       </div>
-      <button class="btn btn-primary" @click="openCreateModal">+ Создать задание</button>
+      <button class="btn btn-primary" @click="showCreateModal = true">+ Создать задание</button>
     </div>
 
-    <!-- Filters Section -->
-    <div class="card" style="margin-top: 20px;">
-      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>Фильтры</span>
-        <button class="btn btn-sm" @click="clearFilters" v-if="searchQuery || subjectFilter || deadlineBefore || deadlineAfter || statusFilter">
-          Сбросить
-        </button>
-      </div>
-      <div class="grid grid-cols-4" style="gap: 16px; margin-top: 16px;">
-        <div>
-          <label class="label">Поиск</label>
+    <!-- Компактный блок фильтров в одну строку -->
+    <div class="card" style="padding: 16px 20px; margin-top: 16px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;">
+        <div style="min-width: 160px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Поиск</label>
           <input v-model="searchQuery" class="input" placeholder="Название..." />
         </div>
-        <div>
-          <label class="label">Предмет</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Предмет</label>
           <input v-model="subjectFilter" class="input" placeholder="Алгебра..." />
         </div>
-        <div>
-          <label class="label">Дедлайн до</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Дедлайн до</label>
           <input v-model="deadlineBefore" type="date" class="input" />
         </div>
-        <div>
-          <label class="label">Дедлайн после</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Дедлайн после</label>
           <input v-model="deadlineAfter" type="date" class="input" />
         </div>
-      </div>
-      <div class="grid grid-cols-4" style="gap: 16px; margin-top: 16px;">
-        <div>
-          <label class="label">Статус</label>
+        <div style="min-width: 140px; flex: 1;">
+          <label class="label" style="margin-bottom: 4px;">Статус</label>
           <select v-model="statusFilter" class="input">
             <option value="">Все статусы</option>
             <option value="assigned">Назначено</option>
@@ -203,9 +154,19 @@ onMounted(fetchAssignments)
             <option value="graded">Проверено</option>
           </select>
         </div>
-      </div>
-      <div class="row" style="margin-top: 16px;">
-        <button class="btn btn-primary" @click="applyFilters">Применить фильтры</button>
+        <div style="display: flex; gap: 8px; align-items: flex-end; padding-bottom: 2px;">
+          <button class="btn btn-primary" @click="applyFilters" style="white-space: nowrap;">
+            Применить
+          </button>
+          <button
+            v-if="searchQuery || subjectFilter || deadlineBefore || deadlineAfter || statusFilter"
+            class="btn"
+            @click="clearFilters"
+            style="white-space: nowrap;"
+          >
+            Сбросить
+          </button>
+        </div>
       </div>
     </div>
 
@@ -238,23 +199,23 @@ onMounted(fetchAssignments)
           </tbody>
         </table>
       </div>
-      
+
       <!-- Pagination -->
       <div class="row" style="justify-content: space-between; align-items: center; margin-top: 16px;">
         <div class="muted">
           Страница {{ currentPage }} из {{ totalPages }} ({{ totalItems }} заданий)
         </div>
         <div class="row" style="gap: 8px;">
-          <button 
-            class="btn" 
-            @click="changePage(currentPage - 1)" 
+          <button
+            class="btn"
+            @click="changePage(currentPage - 1)"
             :disabled="currentPage <= 1"
           >
             ← Назад
           </button>
-          <button 
-            class="btn" 
-            @click="changePage(currentPage + 1)" 
+          <button
+            class="btn"
+            @click="changePage(currentPage + 1)"
             :disabled="currentPage >= totalPages"
           >
             Вперёд →
@@ -263,70 +224,24 @@ onMounted(fetchAssignments)
       </div>
     </div>
 
-    <!-- Create Assignment Modal -->
+    <!-- Простая форма создания (без дедлайна и выбора учеников) -->
     <BaseModal :show="showCreateModal" @close="showCreateModal = false">
       <h2 style="margin-top:0;">Новое задание</h2>
       <form class="form" @submit.prevent="handleCreate">
         <label class="label">Название *</label>
         <input v-model="formTitle" class="input" placeholder="Например, Домашняя работа №1" required />
-        
         <label class="label">Предмет</label>
         <input v-model="formSubject" class="input" placeholder="Алгебра" />
-        
         <label class="label">Описание</label>
         <textarea v-model="formDescription" class="input" rows="3" placeholder="Пояснения..." />
-        
         <label class="label">Файлы материалов</label>
         <input type="file" multiple @change="onFileChange" class="input" />
-        
-        <!-- Student Selection -->
-        <div style="margin-top: 20px;">
-          <label class="label">Выберите учеников</label>
-          <div class="card" style="background: var(--bg-alt); padding: 16px; border-radius: var(--radius-md);">
-            <div v-if="availableStudents.length === 0" class="muted">
-              У вас пока нет активных учеников. Добавьте учеников на странице "Ученики".
-            </div>
-            <div v-else style="max-height: 300px; overflow-y: auto;">
-              <div 
-                v-for="student in availableStudents" 
-                :key="student.student.id"
-                class="row"
-                style="align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border);"
-              >
-                <input 
-                  type="checkbox" 
-                  :id="'student-' + student.student.id"
-                  :checked="selectedStudents.includes(student.student.id)"
-                  @change="toggleStudent(student.student.id)"
-                  style="margin-right: 12px;"
-                />
-                <label :for="'student-' + student.student.id" style="flex: 1; cursor: pointer;">
-                  {{ student.student.first_name }} {{ student.student.last_name }} ({{ student.student.email }})
-                </label>
-                <input 
-                  v-if="selectedStudents.includes(student.student.id)"
-                  v-model="studentDeadlines[student.student.id]"
-                  type="datetime-local"
-                  class="input"
-                  style="width: 200px;"
-                />
-              </div>
-            </div>
-          </div>
-          <p class="muted" style="font-size: 13px; margin-top: 8px;">
-            Для каждого ученика устанавливается индивидуальный дедлайн. Выберите учеников и укажите сроки сдачи.
-          </p>
-        </div>
-        
-        <div class="row" style="justify-content: flex-end; margin-top: 20px;">
+        <div class="row" style="justify-content: flex-end; margin-top: 12px;">
           <button type="button" class="btn" @click="showCreateModal = false">Отмена</button>
-          <button type="submit" class="btn btn-primary" :disabled="creating || !formTitle || selectedStudents.length === 0">
+          <button type="submit" class="btn btn-primary" :disabled="creating || !formTitle">
             {{ creating ? 'Создаётся...' : 'Создать' }}
           </button>
         </div>
-        <p v-if="selectedStudents.length === 0" class="muted" style="font-size: 13px; margin-top: 8px;">
-          * Выберите хотя бы одного ученика для назначения задания
-        </p>
       </form>
     </BaseModal>
   </div>
