@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db.models import Q
 
 from transliterate import translit
 
@@ -23,11 +24,11 @@ from .permissions import IsAssignmentTutorOrReadOnly, IsStudentAssignmentRecipie
 
 class AssignmentListCreateView(generics.ListCreateAPIView):
     """
-    GET: список заданий.
+    GET: список заданий с фильтрацией и пагинацией.
     POST: создать задание (только репетитор).
     """
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]  # для загрузки файлов
-
+    
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return AssignmentCreateUpdateSerializer
@@ -40,13 +41,48 @@ class AssignmentListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Assignment.objects.all()
+        
         if user.role == 'tutor':
-            return Assignment.objects.filter(tutor=user).prefetch_related('files')
+            queryset = queryset.filter(tutor=user)
         else:
             # Ученик видит задания, назначенные ему
-            return Assignment.objects.filter(
+            queryset = queryset.filter(
                 student_assignments__student=user
-            ).distinct().prefetch_related('files')
+            ).distinct()
+        
+        # Фильтрация по предмету
+        subject = self.request.query_params.get('subject')
+        if subject:
+            queryset = queryset.filter(subject__icontains=subject)
+        
+        # Фильтрация по названию
+        title = self.request.query_params.get('title')
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+        
+        # Фильтрация по дедлайну (для учеников)
+        deadline_before = self.request.query_params.get('deadline_before')
+        deadline_after = self.request.query_params.get('deadline_after')
+        if user.role == 'student':
+            if deadline_before:
+                queryset = queryset.filter(
+                    student_assignments__student=user,
+                    student_assignments__deadline__lte=deadline_before
+                ).distinct()
+            if deadline_after:
+                queryset = queryset.filter(
+                    student_assignments__student=user,
+                    student_assignments__deadline__gte=deadline_after
+                ).distinct()
+        
+        # Сортировка
+        ordering = self.request.query_params.get('ordering', '-created_at')
+        valid_orderings = ['created_at', '-created_at', 'title', '-title', 'subject', '-subject']
+        if ordering in valid_orderings:
+            queryset = queryset.order_by(ordering)
+        
+        return queryset.prefetch_related('files')
 
     def perform_create(self, serializer):
         serializer.save(tutor=self.request.user)
@@ -76,20 +112,49 @@ class AssignmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class StudentAssignmentListView(generics.ListAPIView):
-    """Список назначений для текущего пользователя."""
+    """Список назначений для текущего пользователя с фильтрацией и пагинацией."""
     serializer_class = StudentAssignmentListSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
+        queryset = StudentAssignment.objects.all().select_related('student', 'assignment')
+        
         if user.role == 'tutor':
-            return StudentAssignment.objects.filter(
-                assignment__tutor=user
-            ).select_related('student', 'assignment')
+            queryset = queryset.filter(assignment__tutor=user)
         else:
-            return StudentAssignment.objects.filter(
-                student=user
-            ).select_related('assignment')
+            queryset = queryset.filter(student=user)
+        
+        # Фильтрация по предмету (через связанное задание)
+        subject = self.request.query_params.get('subject')
+        if subject:
+            queryset = queryset.filter(assignment__subject__icontains=subject)
+        
+        # Фильтрация по названию задания
+        title = self.request.query_params.get('title')
+        if title:
+            queryset = queryset.filter(assignment__title__icontains=title)
+        
+        # Фильтрация по статусу
+        status = self.request.query_params.get('status')
+        if status and status in ['assigned', 'submitted', 'graded']:
+            queryset = queryset.filter(status=status)
+        
+        # Фильтрация по дедлайну
+        deadline_before = self.request.query_params.get('deadline_before')
+        deadline_after = self.request.query_params.get('deadline_after')
+        if deadline_before:
+            queryset = queryset.filter(deadline__lte=deadline_before)
+        if deadline_after:
+            queryset = queryset.filter(deadline__gte=deadline_after)
+        
+        # Сортировка
+        ordering = self.request.query_params.get('ordering', 'deadline')
+        valid_orderings = ['deadline', '-deadline', 'status', '-status', 'assignment__title', '-assignment__title']
+        if ordering in valid_orderings:
+            queryset = queryset.order_by(ordering)
+        
+        return queryset
 
 class StudentAssignmentDetailView(generics.RetrieveUpdateAPIView):
     """Детали конкретного назначения.

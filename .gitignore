@@ -1,111 +1,85 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-frontend/node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Django
-*.pyc
+```
+# Python
 __pycache__/
+*.pyc
 *.pyo
 *.pyd
 .Python
 env/
 venv/
 .venv/
-env.bak/
-venv.bak/
-instance/
-.webassets-cache
-.scrapy
-docs/_build/
-.pybuilder/
-target/
-.ipynb_checkpoints
-profile_default/
-ipython_config.py
 pip-log.txt
 pip-delete-this-directory.txt
-.tox
+.tox/
 .coverage
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
 *.cover
-.hypothesis/
-.pytest_cache/
-*.mo
+*.log
 *.pot
+*.pyc
+*.pyo
+*.pyd
+.MF
+tags
+TAGS
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Django
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
+.env
 
-# Vue
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+node_modules/
 dist/
-dist-ssr/
-*.tsbuildinfo
+build/
 .nuxt/
-.nitro/
-.cache/
-.output/
+.next/
+out/
+coverage/
+*.min.js
+*.min.css
 
-# Vite
-.env
+# Vue.js
+dist/
+build/
+.nuxt/
+coverage/
+*.log
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 
-# TypeScript
-*.tsbuildinfo
-
-# OS
+# General
+.DS_Store
 Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.log
+*~
+.#*
+.DS_Store
 ehthumbs.db
-[Dd]esktop.ini
-
-# IDE
+Icon?
+.directory
+.Trashes
+!.gitkeep
 *.swp
 *.swo
 *~
-
-# Database
-*.db
-*.sqlite3
-*.db-journal
-
-# Docker
-.docker/
-docker-compose.override.yml
-
-# Backup
-*.bak
-*.backup
+.DS_Store
+Thumbs.db
+```

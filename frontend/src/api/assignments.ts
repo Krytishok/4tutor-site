@@ -11,6 +11,39 @@ import type {
   AssignStudentsPayload,
 } from '@/types/assignments'
 
+// Пагинационные параметры
+export interface PaginationParams {
+  page?: number
+  page_size?: number
+}
+
+// Параметры фильтрации для заданий
+export interface AssignmentFilterParams extends PaginationParams {
+  subject?: string
+  title?: string
+  deadline_before?: string
+  deadline_after?: string
+  ordering?: string
+}
+
+// Параметры фильтрации для назначений учеников
+export interface StudentAssignmentFilterParams extends PaginationParams {
+  subject?: string
+  title?: string
+  status?: 'assigned' | 'submitted' | 'graded'
+  deadline_before?: string
+  deadline_after?: string
+  ordering?: string
+}
+
+// Ответ с пагинацией
+export interface PaginatedResponse<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}
+
 function multipartPost<T>(url: string, formData: FormData): Promise<T> {
   return http.post<T>(url, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -18,8 +51,8 @@ function multipartPost<T>(url: string, formData: FormData): Promise<T> {
 }
 
 // ---------- Задания ----------
-export function getAssignments(): Promise<AssignmentListItem[]> {
-  return http.get<AssignmentListItem[]>('/v1/assignments/').then(res => res.data)
+export function getAssignments(params?: AssignmentFilterParams): Promise<PaginatedResponse<AssignmentListItem>> {
+  return http.get<PaginatedResponse<AssignmentListItem>>('/v1/assignments/', { params }).then(res => res.data)
 }
 
 export function getAssignmentDetail(id: number): Promise<Assignment> {
@@ -64,8 +97,8 @@ export function assignStudentsToAssignment(
 }
 
 // ---------- StudentAssignment ----------
-export function getStudentAssignments(): Promise<StudentAssignmentListItem[]> {
-  return http.get<StudentAssignmentListItem[]>('/v1/assignments/student-assignments/').then(res => res.data)
+export function getStudentAssignments(params?: StudentAssignmentFilterParams): Promise<PaginatedResponse<StudentAssignmentListItem>> {
+  return http.get<PaginatedResponse<StudentAssignmentListItem>>('/v1/assignments/student-assignments/', { params }).then(res => res.data)
 }
 
 export function getStudentAssignmentDetail(pk: number): Promise<StudentAssignment> {
