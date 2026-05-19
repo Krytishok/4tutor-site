@@ -11,6 +11,26 @@ import type {
   AssignStudentsPayload,
 } from '@/types/assignments'
 
+export interface AssignmentFilters {
+  search?: string
+  subject?: string
+  deadline_before?: string
+  deadline_after?: string
+  status?: string
+  page?: number
+  page_size?: number
+}
+
+export interface PaginatedResponse<T> {
+  results: T[]
+  pagination: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+}
+
 function multipartPost<T>(url: string, formData: FormData): Promise<T> {
   return http.post<T>(url, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -18,8 +38,9 @@ function multipartPost<T>(url: string, formData: FormData): Promise<T> {
 }
 
 // ---------- Задания ----------
-export function getAssignments(): Promise<AssignmentListItem[]> {
-  return http.get<AssignmentListItem[]>('/v1/assignments/').then(res => res.data)
+export function getAssignments(filters?: AssignmentFilters): Promise<PaginatedResponse<AssignmentListItem>> {
+  const params = filters ? { ...filters } : undefined
+  return http.get<PaginatedResponse<AssignmentListItem>>('/v1/assignments/', { params }).then(res => res.data)
 }
 
 export function getAssignmentDetail(id: number): Promise<Assignment> {
@@ -64,8 +85,9 @@ export function assignStudentsToAssignment(
 }
 
 // ---------- StudentAssignment ----------
-export function getStudentAssignments(): Promise<StudentAssignmentListItem[]> {
-  return http.get<StudentAssignmentListItem[]>('/v1/assignments/student-assignments/').then(res => res.data)
+export function getStudentAssignments(filters?: AssignmentFilters): Promise<PaginatedResponse<StudentAssignmentListItem>> {
+  const params = filters ? { ...filters } : undefined
+  return http.get<PaginatedResponse<StudentAssignmentListItem>>('/v1/assignments/student-assignments/', { params }).then(res => res.data)
 }
 
 export function getStudentAssignmentDetail(pk: number): Promise<StudentAssignment> {

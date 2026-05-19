@@ -165,10 +165,11 @@ class AssignmentCreateUpdateSerializer(serializers.ModelSerializer):
 class StudentAssignmentListSerializer(serializers.ModelSerializer):
     student = UserBriefSerializer(read_only=True)
     assignment_title = serializers.CharField(source='assignment.title', read_only=True)
+    tutor = UserBriefSerializer(source='assignment.tutor', read_only=True) 
 
     class Meta:
         model = StudentAssignment
-        fields = ('id', 'assignment', 'assignment_title', 'student',
+        fields = ('id', 'assignment', 'assignment_title', 'tutor', 'student',
                   'deadline', 'status', 'grade', 'submitted_at')
 
 

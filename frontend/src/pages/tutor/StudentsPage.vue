@@ -2,12 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useStudentsStore } from '../../stores/students'
 import type { TutorStudentRelation } from '../../types/domain'
+import BaseModal from '@/components/ui/BaseModal.vue'
 
 const students = useStudentsStore()
 
 const email = ref('')
 const subject = ref('')
 const localError = ref('')
+const showInviteModal = ref(false)
 
 onMounted(async () => {
   await students.loadTutorStudents()
@@ -24,6 +26,7 @@ async function submitInvite() {
     await students.sendInvitation(email.value.trim(), subject.value.trim())
     email.value = ''
     subject.value = ''
+    showInviteModal.value = false
   } catch {
     localError.value = students.error || 'Не удалось отправить приглашение.'
   }
@@ -32,41 +35,30 @@ async function submitInvite() {
 function fullName(relation: TutorStudentRelation) {
   return `${relation.student.first_name} ${relation.student.last_name}`.trim() || relation.student.email
 }
+
+function openInviteModal() {
+  email.value = ''
+  subject.value = ''
+  localError.value = ''
+  showInviteModal.value = true
+}
 </script>
 
 <template>
   <div class="page">
-    <div>
-      <h1 class="page-title">Ученики</h1>
-      <p class="muted" style="margin: 8px 0 0 0;">
-        Приглашайте учеников по e-mail и управляйте связями.
-      </p>
+    <div class="row" style="justify-content: space-between; align-items: flex-start;">
+      <div>
+        <h1 class="page-title">Ученики</h1>
+        <p class="muted" style="margin: 8px 0 0 0;">
+          Приглашайте учеников по e-mail и управляйте связями.
+        </p>
+      </div>
+      <button class="btn btn-primary" @click="openInviteModal">+ Пригласить ученика</button>
     </div>
 
-    <div class="card">
-      <div class="card-title">Отправить приглашение</div>
-      <div class="grid grid-cols-2" style="margin-top: 12px;">
-        <div>
-          <div class="label">E-mail ученика</div>
-          <input v-model="email" class="input" type="email" placeholder="student@example.com" />
-        </div>
-        <div>
-          <div class="label">Предмет (необязательно)</div>
-          <input v-model="subject" class="input" type="text" placeholder="Алгебра" />
-        </div>
-      </div>
-      <div class="row" style="margin-top: 12px;">
-        <button class="btn btn-primary" type="button" @click="submitInvite" :disabled="students.loading || !email.trim()">
-          Отправить инвайт
-        </button>
-        <span v-if="localError || students.error" style="color: #ef4444;">
-          {{ localError || students.error }}
-        </span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Активные ученики</div>
+    <!-- Active Students Card -->
+    <div class="card" style="margin-top: 20px;">
+      <div class="card-title">Активные ученики ({{ activeRelations.length }})</div>
       <div style="overflow-x: auto; margin-top: 12px;">
         <table class="table">
           <thead>
@@ -90,8 +82,9 @@ function fullName(relation: TutorStudentRelation) {
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Ожидают подтверждения</div>
+    <!-- Pending Invitations Card -->
+    <div class="card" style="margin-top: 20px;">
+      <div class="card-title">Ожидают подтверждения ({{ pendingRelations.length }})</div>
       <div style="overflow-x: auto; margin-top: 12px;">
         <table class="table">
           <thead>
@@ -107,7 +100,7 @@ function fullName(relation: TutorStudentRelation) {
               <td>{{ fullName(r) }}</td>
               <td>{{ r.student.email }}</td>
               <td>{{ r.subject || '—' }}</td>
-              <td>{{ r.status }}</td>
+              <td><span class="chip chip-warning">{{ r.status }}</span></td>
             </tr>
             <tr v-if="pendingRelations.length === 0">
               <td colspan="4" class="muted">Нет ожидающих приглашений</td>
@@ -116,5 +109,91 @@ function fullName(relation: TutorStudentRelation) {
         </table>
       </div>
     </div>
+
+    <!-- Invite Student Modal -->
+    <BaseModal :show="showInviteModal" @close="showInviteModal = false">
+      <div class="modal-header">
+        <h2 style="margin: 0;">Пригласить ученика</h2>
+        <p class="muted" style="margin: 8px 0 0 0; font-size: 14px;">
+          Отправьте приглашение ученику по электронной почте. После регистрации он сможет видеть ваши задания.
+        </p>
+      </div>
+      
+      <form class="form" @submit.prevent="submitInvite" style="margin-top: 20px;">
+        <div class="form-group">
+          <label class="label">E-mail ученика *</label>
+          <input 
+            v-model="email" 
+            class="input" 
+            type="email" 
+            placeholder="student@example.com" 
+            required
+            autofocus
+          />
+        </div>
+        
+        <div class="form-group">
+          <label class="label">Предмет (необязательно)</label>
+          <input 
+            v-model="subject" 
+            class="input" 
+            type="text" 
+            placeholder="Например, Алгебра" 
+          />
+          <p class="muted" style="font-size: 13px; margin-top: 4px;">
+            Укажите предмет, если хотите привязать ученика к конкретному предмету
+          </p>
+        </div>
+        
+        <div v-if="localError || students.error" class="alert alert-error" style="margin-top: 16px;">
+          {{ localError || students.error }}
+        </div>
+        
+        <div class="modal-actions" style="margin-top: 24px;">
+          <button 
+            type="button" 
+            class="btn" 
+            @click="showInviteModal = false"
+          >
+            Отмена
+          </button>
+          <button 
+            type="submit" 
+            class="btn btn-primary" 
+            :disabled="students.loading || !email.trim()"
+          >
+            {{ students.loading ? 'Отправка...' : 'Отправить приглашение' }}
+          </button>
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.modal-header {
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+
+.alert-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+</style>
