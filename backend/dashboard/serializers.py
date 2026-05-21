@@ -9,7 +9,6 @@ from api.models import TutorStudent, User
 UserModel = get_user_model()
 
 
-# ==================== TUTOR DASHBOARD SERIALIZERS ====================
 
 class TutorDeadlineItemSerializer(serializers.ModelSerializer):
     """Сериализатор для элемента списка ближайших дедлайнов"""
