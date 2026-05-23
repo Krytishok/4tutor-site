@@ -1,600 +1,1120 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  ClipboardList,
+  Flame,
+  Clock3,
+  CheckCircle2,
+  AlertTriangle,
+  Plus,
+  ArrowRight
+} from 'lucide-vue-next'
+
 import { getTutorDashboard } from '@/api/dashboard'
 import type { TutorDashboardData } from '@/api/dashboard'
 
 const router = useRouter()
+
 const dashboardData = ref<TutorDashboardData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
+
   return date.toLocaleDateString('ru-RU', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit'
   })
 }
 
-const isOverdue = (deadline: string) => new Date(deadline) < new Date()
+const isOverdue = (deadline: string) => {
+  return new Date(deadline) < new Date()
+}
 
-// Вычисляемые проценты для мини-баров в статистике
-const statsProgress = computed(() => {
+const stats = computed(() => {
   if (!dashboardData.value) return null
+
   const s = dashboardData.value.assignment_stats
   const total = s.total_assignments || 1
-  return {
-    active: Math.round((s.active_assignments / total) * 100),
-    pending: Math.round((s.submitted_pending / total) * 100),
-    graded: Math.round((s.graded_count / total) * 100)
-  }
+
+  return [
+    {
+      label: 'Всего заданий',
+      value: s.total_assignments,
+      progress: 100,
+      icon: ClipboardList,
+      color: 'primary'
+    },
+    {
+      label: 'Активных',
+      value: s.active_assignments,
+      progress: Math.round((s.active_assignments / total) * 100),
+      icon: Flame,
+      color: 'orange'
+    },
+    {
+      label: 'На проверке',
+      value: s.submitted_pending,
+      progress: Math.round((s.submitted_pending / total) * 100),
+      icon: Clock3,
+      color: 'warning'
+    },
+    {
+      label: 'Проверено',
+      value: s.graded_count,
+      progress: Math.round((s.graded_count / total) * 100),
+      icon: CheckCircle2,
+      color: 'success'
+    }
+  ]
 })
 
 onMounted(async () => {
   try {
     dashboardData.value = await getTutorDashboard()
   } catch (e) {
-    error.value = 'Не удалось загрузить данные дашборда'
+    error.value = 'Не удалось загрузить дашборд'
     console.error(e)
   } finally {
     loading.value = false
   }
 })
 
-const goToAssignment = (id: number) => router.push(`/app/tutor/assignments/${id}`)
-const goToStudents = () => router.push('/app/tutor/students')
-const createNewAssignment = () => router.push('/app/tutor/assignments/create')
+const goToAssignment = (id: number) => {
+  router.push(`/app/tutor/assignments/${id}`)
+}
+
+const goToStudents = () => {
+  router.push('/app/tutor/students')
+}
+
+const createNewAssignment = () => {
+  router.push('/app/tutor/assignments/create')
+}
 </script>
 
 <template>
   <div class="dashboard">
-    <!-- Заголовок -->
-    <header class="dashboard-header">
-      <h1 class="page-title">Дашборд репетитора</h1>
-      <p class="page-subtitle">Быстрый обзор учеников, заданий и дедлайнов</p>
+    <!-- Hero -->
+    <header class="dashboard-hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="hero-dot"></span>
+          Панель преподавателя
+        </div>
+
+        <h1 class="hero-title">
+          Добро пожаловать обратно
+        </h1>
+
+        <p class="hero-subtitle">
+          Следите за дедлайнами, проверяйте задания и контролируйте прогресс учеников.
+        </p>
+      </div>
+
+      <button
+        class="btn btn-primary hero-btn"
+        @click="createNewAssignment"
+      >
+        <Plus :size="18" />
+        Новое задание
+      </button>
     </header>
 
-    <!-- Состояния загрузки/ошибки -->
-    <div v-if="loading" class="status-message">Загрузка...</div>
-    <div v-else-if="error" class="status-message error">{{ error }}</div>
+    <!-- Loading -->
+    <div v-if="loading" class="skeleton-grid">
+      <div class="skeleton-card" v-for="i in 4" :key="i"></div>
+    </div>
 
-    <div v-else-if="dashboardData" class="dashboard-content">
-      <!-- Секция 1: Крупные плитки статистики -->
-      <section class="stats-row">
-        <div class="stat-tile">
-          <div class="stat-number">{{ dashboardData.assignment_stats.total_assignments }}</div>
-          <div class="stat-label">Всего заданий</div>
-          <div class="mini-bar"><span class="fill" style="width:100%"></span></div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-number">{{ dashboardData.assignment_stats.active_assignments }}</div>
-          <div class="stat-label">Активных</div>
-          <div class="mini-bar">
-            <span class="fill" :style="{ width: statsProgress?.active + '%' }"></span>
+    <!-- Error -->
+    <div v-else-if="error" class="error-state">
+      {{ error }}
+    </div>
+
+    <!-- Content -->
+    <div v-else-if="dashboardData && stats">
+      <!-- Stats -->
+      <section class="stats-grid">
+        <div
+          v-for="item in stats"
+          :key="item.label"
+          class="stat-card"
+        >
+          <div class="stat-top">
+            <div class="stat-icon" :class="item.color">
+              <component :is="item.icon" :size="22" />
+            </div>
+
+            <div class="stat-progress">
+              {{ item.progress }}%
+            </div>
           </div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-number">{{ dashboardData.assignment_stats.submitted_pending }}</div>
-          <div class="stat-label">На проверке</div>
-          <div class="mini-bar warning">
-            <span class="fill" :style="{ width: statsProgress?.pending + '%' }"></span>
+
+          <div class="stat-value">
+            {{ item.value }}
           </div>
-        </div>
-        <div class="stat-tile">
-          <div class="stat-number">{{ dashboardData.assignment_stats.graded_count }}</div>
-          <div class="stat-label">Проверено</div>
-          <div class="mini-bar success">
-            <span class="fill" :style="{ width: statsProgress?.graded + '%' }"></span>
+
+          <div class="stat-label">
+            {{ item.label }}
+          </div>
+
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :class="item.color"
+              :style="{ width: item.progress + '%' }"
+            ></div>
           </div>
         </div>
       </section>
 
-      <!-- Секция 2: Сетка с разными весами блоков -->
-      <div class="importance-grid">
-        <!-- Ближайшие дедлайны (широкий) -->
-        <section class="card card--deadlines span-2">
-          <div class="card-header">
-            <h2 class="card-title">📅 Ближайшие дедлайны</h2>
-          </div>
-          <div v-if="dashboardData.upcoming_deadlines.length" class="card-body">
-            <ul class="deadline-list">
-              <li
+      <!-- Main Layout -->
+      <section class="main-grid">
+        <!-- LEFT -->
+        <div class="left-column">
+          <!-- Deadlines -->
+          <div class="dashboard-card primary-card">
+            <div class="card-header">
+              <div>
+                <h2>Ближайшие дедлайны</h2>
+                <p>Требуют внимания в ближайшее время</p>
+              </div>
+            </div>
+
+            <div
+              v-if="dashboardData.upcoming_deadlines.length"
+              class="deadline-list"
+            >
+              <div
                 v-for="item in dashboardData.upcoming_deadlines"
                 :key="item.id"
                 class="deadline-item"
                 :class="{ overdue: isOverdue(item.deadline) }"
                 @click="goToAssignment(item.id)"
               >
-                <div class="item-info">
-                  <span class="assignment-name">{{ item.assignment_title }}</span>
-                  <span class="student-name">{{ item.student_name }}</span>
-                </div>
-                <div class="item-date">
-                  <span class="date" :class="{ 'text-danger': isOverdue(item.deadline) }">
-                    {{ formatDate(item.deadline) }}
-                  </span>
-                </div>
-              </li>
-            </ul>
-          </div>
-          <div v-else class="empty-state">Все задания вовремя сданы</div>
-        </section>
+                <div class="deadline-main">
+                  <div class="deadline-title">
+                    {{ item.assignment_title }}
+                  </div>
 
-        <!-- Последние задания (компактный) -->
-        <section class="card card--recent span-1">
-          <div class="card-header">
-            <h2 class="card-title">📝 Последние</h2>
-            <button class="btn btn-primary btn-sm" @click="createNewAssignment">+</button>
+                  <div class="deadline-student">
+                    {{ item.student_name }}
+                  </div>
+                </div>
+
+                <div class="deadline-side">
+                  <div
+                    class="deadline-date"
+                    :class="{ overdue: isOverdue(item.deadline) }"
+                  >
+                    {{ formatDate(item.deadline) }}
+                  </div>
+
+                  <ArrowRight :size="16" />
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state">
+              Всё отлично — ближайших дедлайнов нет.
+            </div>
           </div>
-          <div v-if="dashboardData.recent_assignments.length" class="card-body">
-            <ul class="compact-list">
-              <li
+
+          <!-- Attention -->
+          <div class="dashboard-card primary-card">
+            <div class="card-header">
+              <div>
+                <h2>Требуют внимания</h2>
+                <p>Проверка работ и просроченные задания</p>
+              </div>
+            </div>
+
+            <!-- Pending -->
+            <div class="attention-block warning">
+              <div class="attention-header">
+                <div class="attention-title">
+                  <Clock3 :size="18" />
+                  Ожидают оценки
+                </div>
+
+                <div class="attention-count">
+                  {{ dashboardData.needs_attention.submitted_pending_count }}
+                </div>
+              </div>
+
+              <div
+                v-if="dashboardData.needs_attention.submitted_pending.length"
+                class="attention-list"
+              >
+                <div
+                  v-for="item in dashboardData.needs_attention.submitted_pending"
+                  :key="item.id"
+                  class="attention-item"
+                >
+                  <div>
+                    <div class="attention-item-title">
+                      {{ item.assignment_title }}
+                    </div>
+
+                    <div class="attention-item-subtitle">
+                      {{ item.student_name }}
+                    </div>
+                  </div>
+
+                  <button
+                    class="btn btn-sm btn-primary"
+                    @click.stop="goToAssignment(item.id)"
+                  >
+                    Проверить
+                  </button>
+                </div>
+              </div>
+
+              <div v-else class="ok-state">
+                Всё проверено
+              </div>
+            </div>
+
+            <!-- Overdue -->
+            <div class="attention-block danger">
+              <div class="attention-header">
+                <div class="attention-title">
+                  <AlertTriangle :size="18" />
+                  Просрочено
+                </div>
+
+                <div class="attention-count">
+                  {{ dashboardData.needs_attention.overdue_count }}
+                </div>
+              </div>
+
+              <div
+                v-if="dashboardData.needs_attention.overdue.length"
+                class="attention-list"
+              >
+                <div
+                  v-for="item in dashboardData.needs_attention.overdue"
+                  :key="item.id"
+                  class="attention-item"
+                >
+                  <div>
+                    <div class="attention-item-title">
+                      {{ item.assignment_title }}
+                    </div>
+
+                    <div class="attention-item-subtitle">
+                      {{ item.student_name }}
+                    </div>
+                  </div>
+
+                  <button
+                    class="btn btn-sm danger-btn"
+                    @click.stop="goToAssignment(item.id)"
+                  >
+                    Открыть
+                  </button>
+                </div>
+              </div>
+
+              <div v-else class="ok-state">
+                Просрочек нет
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="right-column">
+          <!-- Recent -->
+          <div class="dashboard-card secondary-card">
+            <div class="card-header">
+              <div>
+                <h2>Последние задания</h2>
+                <p>Недавно созданные задания</p>
+              </div>
+
+              <button
+                class="btn btn-outline btn-sm"
+                @click="createNewAssignment"
+              >
+                Добавить
+              </button>
+            </div>
+
+            <div
+              v-if="dashboardData.recent_assignments.length"
+              class="compact-list"
+            >
+              <div
                 v-for="item in dashboardData.recent_assignments"
                 :key="item.id"
                 class="compact-item"
                 @click="goToAssignment(item.id)"
               >
-                <span class="title">{{ item.title }}</span>
-                <span class="meta">{{ formatDate(item.created_at) }}</span>
-              </li>
-            </ul>
-          </div>
-          <div v-else class="empty-state">Нет заданий</div>
-        </section>
+                <div>
+                  <div class="compact-title">
+                    {{ item.title }}
+                  </div>
 
-        <!-- Требуют внимания (широкий) -->
-        <section class="card card--attention span-2">
-          <div class="card-header">
-            <h2 class="card-title">⚠️ Требуют внимания</h2>
-          </div>
-          <div class="attention-blocks">
-            <div class="attention-group">
-              <h3 class="group-title">Ожидают оценки ({{ dashboardData.needs_attention.submitted_pending_count }})</h3>
-              <ul v-if="dashboardData.needs_attention.submitted_pending.length" class="attention-list">
-                <li
-                  v-for="item in dashboardData.needs_attention.submitted_pending"
-                  :key="item.id"
-                  class="attention-item"
-                >
-                  <span>{{ item.assignment_title }} — {{ item.student_name }}</span>
-                  <button class="btn btn-primary btn-sm" @click="goToAssignment(item.id)">Оценить</button>
-                </li>
-              </ul>
-              <div v-else class="ok-message">Всё проверено ✓</div>
+                  <div class="compact-meta">
+                    {{ formatDate(item.created_at) }}
+                  </div>
+                </div>
+
+                <ArrowRight :size="16" />
+              </div>
             </div>
-            <div class="attention-group overdue-group">
-              <h3 class="group-title">Просроченные ({{ dashboardData.needs_attention.overdue_count }})</h3>
-              <ul v-if="dashboardData.needs_attention.overdue.length" class="attention-list">
-                <li
-                  v-for="item in dashboardData.needs_attention.overdue"
-                  :key="item.id"
-                  class="attention-item overdue-item"
-                >
-                  <span>
-                    {{ item.assignment_title }} — {{ item.student_name }}
-                    <span class="overdue-date">{{ formatDate(item.deadline) }}</span>
-                  </span>
-                  <button class="btn btn-danger btn-sm" @click="goToAssignment(item.id)">Открыть</button>
-                </li>
-              </ul>
-              <div v-else class="ok-message">Просрочек нет ✓</div>
+
+            <div v-else class="empty-state small">
+              Пока нет заданий
             </div>
           </div>
-        </section>
 
-        <!-- Активные ученики (компактный) -->
-        <section class="card card--students span-1">
-          <div class="card-header">
-            <h2 class="card-title">👥 Ученики</h2>
-            <button class="btn btn-outline btn-sm" @click="goToStudents">Все</button>
-          </div>
-          <div v-if="dashboardData.active_students.length" class="card-body">
-            <ul class="compact-list">
-              <li
+          <!-- Students -->
+          <div class="dashboard-card secondary-card">
+            <div class="card-header">
+              <div>
+                <h2>Активные ученики</h2>
+                <p>Текущая активность учеников</p>
+              </div>
+
+              <button
+                class="btn btn-outline btn-sm"
+                @click="goToStudents"
+              >
+                Все
+              </button>
+            </div>
+
+            <div
+              v-if="dashboardData.active_students.length"
+              class="compact-list"
+            >
+              <div
                 v-for="student in dashboardData.active_students"
                 :key="student.id"
-                class="compact-item"
+                class="compact-item no-hover"
               >
-                <span class="title">{{ student.first_name }} {{ student.last_name }}</span>
-                <span v-if="student.pending_assignments_count" class="badge-pending">
-                  {{ student.pending_assignments_count }} не сдано
-                </span>
-                <span v-else class="meta">Всё сдано</span>
-              </li>
-            </ul>
+                <div class="student-row">
+                  <div class="student-avatar">
+                    {{ student.first_name[0] }}
+                  </div>
+
+                  <div>
+                    <div class="compact-title">
+                      {{ student.first_name }}
+                      {{ student.last_name }}
+                    </div>
+
+                    <div class="compact-meta">
+                      Активный ученик
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  v-if="student.pending_assignments_count"
+                  class="badge pending"
+                >
+                  {{ student.pending_assignments_count }}
+                </div>
+
+                <div v-else class="badge success">
+                  ✓
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state small">
+              Пока нет учеников
+            </div>
           </div>
-          <div v-else class="empty-state">Нет учеников</div>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-:root {
-  --color-bg: #f5f7fc;
-  --color-surface: #ffffff;
-  --color-primary: #4361ee;
-  --color-primary-light: #eef1ff;
-  --color-danger: #f72585;
-  --color-danger-bg: #fff0f5;
-  --color-warning: #f8961e;
-  --color-success: #06d6a0;
-  --color-text: #1e293b;
-  --color-text-muted: #64748b;
-  --color-border: #e9eef2;
-  --radius: 16px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-  --transition: 0.2s ease;
-}
-
-/* ----- Базовые стили страницы ----- */
 .dashboard {
-  max-width: 1280px;
+  padding: 32px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 28px 24px;
-  background: var(--color-bg);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: var(--color-text);
   min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(30,58,138,0.04),
+      transparent 28%
+    ),
+    var(--bg);
 }
-.dashboard-header {
+
+/* HERO */
+
+.dashboard-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+
+  padding: 32px;
   margin-bottom: 32px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(30,58,138,0.08),
+      rgba(30,58,138,0.02)
+    );
+
+  border: 1px solid rgba(30,58,138,0.08);
+  border-radius: 28px;
 }
-.page-title {
-  font-size: 30px;
+
+.hero-content {
+  max-width: 720px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-bottom: 16px;
+
+  font-size: 13px;
   font-weight: 700;
-  margin: 0 0 6px;
-  letter-spacing: -0.5px;
+
+  color: var(--primary);
 }
-.page-subtitle {
-  color: var(--color-text-muted);
-  font-size: 15px;
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.hero-title {
   margin: 0;
+
+  font-size: 38px;
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+
+  color: var(--text);
 }
 
-/* ----- Сообщения состояния ----- */
-.status-message {
-  text-align: center;
-  padding: 60px 20px;
+.hero-subtitle {
+  margin: 14px 0 0;
+
+  max-width: 620px;
+
   font-size: 16px;
-  color: var(--color-text-muted);
-}
-.status-message.error {
-  color: var(--color-danger);
+  line-height: 1.65;
+
+  color: var(--muted);
 }
 
-/* ----- Строка со статистикой ----- */
-.stats-row {
+.hero-btn {
+  height: 48px;
+  padding-inline: 18px;
+  border-radius: 14px;
+}
+
+/* STATS */
+
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+
   margin-bottom: 28px;
 }
-.stat-tile {
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  padding: 22px 20px;
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition), box-shadow var(--transition);
-  text-align: center;
+
+.stat-card {
+  padding: 22px;
+
+  background: rgba(255,255,255,0.9);
+
+  backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: 24px;
+
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    border-color .2s ease;
 }
-.stat-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+
+.stat-card:hover {
+  transform: translateY(-3px);
+
+  border-color: rgba(30,58,138,0.08);
+
+  box-shadow:
+    0 14px 40px rgba(15,23,42,0.06);
 }
-.stat-number {
-  font-size: 42px;
-  font-weight: 800;
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+
+  border-radius: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon.primary {
+  background: rgba(30,58,138,0.10);
+  color: var(--primary);
+}
+
+.stat-icon.orange {
+  background: rgba(249,115,22,0.10);
+  color: #ea580c;
+}
+
+.stat-icon.warning {
+  background: rgba(245,158,11,0.10);
+  color: #d97706;
+}
+
+.stat-icon.success {
+  background: rgba(16,185,129,0.10);
+  color: var(--success);
+}
+
+.stat-progress {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 36px;
   line-height: 1;
-  color: var(--color-primary);
+
+  font-weight: 800;
+  letter-spacing: -0.04em;
+
   margin-bottom: 8px;
 }
+
 .stat-label {
   font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
+  color: var(--muted);
+
+  margin-bottom: 18px;
 }
-.mini-bar {
-  height: 4px;
-  background: #e9eef2;
-  border-radius: 4px;
+
+.progress-bar {
+  height: 7px;
+  border-radius: 999px;
   overflow: hidden;
-  margin-top: auto;
+
+  background: #eef2f7;
 }
-.mini-bar .fill {
-  display: block;
+
+.progress-fill {
   height: 100%;
-  background: var(--color-primary);
-  border-radius: 4px;
-  transition: width 0.6s ease;
-}
-.mini-bar.warning .fill {
-  background: var(--color-warning);
-}
-.mini-bar.success .fill {
-  background: var(--color-success);
+  border-radius: inherit;
+
+  transition: width .5s ease;
 }
 
-/* ----- Сетка с весами важности ----- */
-.importance-grid {
+.progress-fill.primary {
+  background: var(--primary);
+}
+
+.progress-fill.orange {
+  background: #ea580c;
+}
+
+.progress-fill.warning {
+  background: var(--reminder);
+}
+
+.progress-fill.success {
+  background: var(--success);
+}
+
+/* MAIN GRID */
+
+.main-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-.span-2 {
-  grid-column: span 2;
-}
-.span-1 {
-  grid-column: span 1;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 420px);
+  gap: 24px;
+  align-items: start;
 }
 
-/* ----- Карточки ----- */
-.card {
-  background: var(--color-surface);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: box-shadow var(--transition);
+.left-column {
   display: flex;
   flex-direction: column;
+  gap: 24px;
 }
-.card:hover {
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+
+.right-column {
+  position: sticky;
+  top: 88px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
+
+/* CARDS */
+
+.dashboard-card {
+  border-radius: 26px;
+  padding: 26px;
+
+  border: 1px solid var(--border);
+}
+
+.primary-card {
+  background: white;
+}
+
+.secondary-card {
+  background: #fcfcfd;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.card-body {
-  flex: 1;
+  align-items: flex-start;
+  gap: 16px;
+
+  margin-bottom: 24px;
 }
 
-/* ----- Дедлайны ----- */
-.deadline-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.card-header h2 {
+  margin: 0 0 4px;
+
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
+
+.card-header p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* DEADLINES */
+
+.deadline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .deadline-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 16px;
+
+  border-radius: 18px;
+  border: 1px solid transparent;
+
   cursor: pointer;
-  transition: background var(--transition);
+
+  transition: all .18s ease;
 }
-.deadline-item:last-child {
-  border-bottom: none;
-}
+
 .deadline-item:hover {
-  background: #f8fafd;
-  margin: 0 -12px;
-  padding-left: 12px;
-  padding-right: 12px;
-  border-radius: 8px;
+  background: rgba(30,58,138,0.04);
+  border-color: rgba(30,58,138,0.05);
+
+  transform: translateX(2px);
 }
+
 .deadline-item.overdue {
-  background: var(--color-danger-bg);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 4px;
-  border: none;
-}
-.deadline-item.overdue:hover {
-  background: #ffe0e8;
-}
-.item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.assignment-name {
-  font-weight: 600;
-}
-.student-name {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-.item-date .date {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-.text-danger {
-  color: var(--color-danger) !important;
-  font-weight: 500;
+  background: rgba(239,68,68,0.05);
 }
 
-/* ----- Последние задания и Ученики (компактный список) ----- */
-.compact-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.compact-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background var(--transition);
-}
-.compact-item:last-child {
-  border-bottom: none;
-}
-.compact-item:hover {
-  background: #f8fafd;
-  margin: 0 -8px;
-  padding-left: 8px;
-  padding-right: 8px;
-  border-radius: 8px;
-}
-.compact-item .title {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70%;
-}
-.compact-item .meta,
-.compact-item .badge-pending {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-.badge-pending {
-  color: var(--color-danger);
-  font-weight: 500;
-}
-
-/* ----- Требуют внимания ----- */
-.attention-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.attention-group {
+.deadline-main {
   flex: 1;
 }
-.group-title {
+
+.deadline-title {
   font-size: 15px;
   font-weight: 600;
-  margin: 0 0 12px;
-  color: var(--color-text);
+
+  margin-bottom: 4px;
 }
-.overdue-group .group-title {
-  color: var(--color-danger);
+
+.deadline-student {
+  font-size: 13px;
+  color: var(--muted);
 }
+
+.deadline-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: var(--muted);
+}
+
+.deadline-date {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deadline-date.overdue {
+  color: var(--danger);
+}
+
+/* ATTENTION */
+
+.attention-block {
+  padding: 18px;
+  border-radius: 20px;
+
+  margin-bottom: 16px;
+}
+
+.attention-block.warning {
+  background: rgba(245,158,11,0.08);
+}
+
+.attention-block.danger {
+  background: rgba(239,68,68,0.08);
+}
+
+.attention-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 16px;
+}
+
+.attention-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.attention-count {
+  min-width: 28px;
+  height: 28px;
+
+  border-radius: 999px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.7);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .attention-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
 .attention-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--color-border);
-}
-.attention-item:last-child {
-  border-bottom: none;
-}
-.overdue-item {
-  background: var(--color-danger-bg);
-  padding: 10px 12px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  border: none;
-}
-.overdue-date {
-  font-size: 12px;
-  color: var(--color-danger);
-  margin-left: 8px;
-  font-weight: 500;
-}
-.ok-message {
-  font-size: 13px;
-  color: var(--color-success);
-  padding: 4px 0;
+  gap: 16px;
+
+  padding: 14px;
+
+  background: rgba(255,255,255,0.7);
+
+  border-radius: 14px;
 }
 
-/* ----- Кнопки ----- */
-.btn {
-  display: inline-flex;
+.attention-item-title {
+  font-size: 14px;
+  font-weight: 600;
+
+  margin-bottom: 4px;
+}
+
+.attention-item-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* COMPACT LIST */
+
+.compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compact-item {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 13px;
-  border: none;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 14px;
+
+  border-radius: 16px;
+  border: 1px solid transparent;
+
   cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-.btn-sm {
-  padding: 5px 12px;
-  font-size: 12px;
-}
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-.btn-primary:hover {
-  background: #3050d0;
-}
-.btn-outline {
-  background: transparent;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
-}
-.btn-outline:hover {
-  background: var(--color-primary-light);
-}
-.btn-danger {
-  background: var(--color-danger);
-  color: white;
-}
-.btn-danger:hover {
-  background: #d91e6c;
+
+  transition: all .18s ease;
 }
 
-/* ----- Пустые состояния ----- */
+.compact-item:hover {
+  background: rgba(30,58,138,0.04);
+  border-color: rgba(30,58,138,0.05);
+
+  transform: translateX(2px);
+}
+
+.compact-item.no-hover {
+  cursor: default;
+}
+
+.compact-item.no-hover:hover {
+  transform: none;
+}
+
+.compact-title {
+  font-size: 14px;
+  font-weight: 600;
+
+  margin-bottom: 4px;
+}
+
+.compact-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* STUDENTS */
+
+.student-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-avatar {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(30,58,138,0.08);
+
+  color: var(--primary);
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* BADGES */
+
+.badge {
+  min-width: 28px;
+  height: 28px;
+
+  padding-inline: 10px;
+
+  border-radius: 999px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.pending {
+  background: rgba(245,158,11,0.12);
+  color: #b45309;
+}
+
+.badge.success {
+  background: rgba(16,185,129,0.12);
+  color: var(--success);
+}
+
+/* STATES */
+
 .empty-state {
+  padding: 40px 20px;
+
   text-align: center;
-  padding: 20px;
-  color: var(--color-text-muted);
+
+  color: var(--muted);
   font-size: 14px;
 }
 
-/* ----- Адаптив ----- */
-@media (max-width: 1024px) {
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
+.empty-state.small {
+  padding: 24px 12px;
+}
+
+.ok-state {
+  padding: 10px 0;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: var(--success);
+}
+
+.error-state {
+  padding: 24px;
+
+  border-radius: 18px;
+
+  background: rgba(239,68,68,0.08);
+
+  color: var(--danger);
+}
+
+/* BUTTONS */
+
+.btn-sm {
+  height: 36px;
+  padding-inline: 14px;
+
+  font-size: 13px;
+}
+
+.danger-btn {
+  background: var(--danger);
+  color: white;
+  border-color: transparent;
+}
+
+.danger-btn:hover {
+  opacity: 0.92;
+}
+
+/* SKELETON */
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.skeleton-card {
+  height: 160px;
+
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f3f4f6 25%,
+      #e5e7eb 37%,
+      #f3f4f6 63%
+    );
+
+  background-size: 400% 100%;
+
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
   }
-  .importance-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .span-2 {
-    grid-column: span 2; /* на планшетах широкие блоки занимают всю ширину */
-  }
-  .span-1 {
-    grid-column: span 1;
+
+  100% {
+    background-position: -100% 0;
   }
 }
-@media (max-width: 640px) {
+
+/* RESPONSIVE */
+
+@media (max-width: 1180px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .right-column {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
   .dashboard {
-    padding: 16px;
+    padding: 18px;
   }
-  .stats-row {
+
+  .dashboard-hero {
+    flex-direction: column;
+    align-items: flex-start;
+
+    padding: 24px;
+  }
+
+  .hero-title {
+    font-size: 30px;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
   }
-  .importance-grid {
+
+  .skeleton-grid {
     grid-template-columns: 1fr;
   }
-  .span-2,
-  .span-1 {
-    grid-column: span 1;
+
+  .dashboard-card {
+    padding: 20px;
+  }
+
+  .deadline-item,
+  .attention-item,
+  .compact-item {
+    padding: 14px;
+  }
+
+  .card-header {
+    flex-direction: column;
   }
 }
 </style>

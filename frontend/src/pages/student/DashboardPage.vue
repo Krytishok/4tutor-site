@@ -1,30 +1,75 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+
+import {
+  BookOpen,
+  Trophy,
+  BarChart3,
+  GraduationCap,
+  ArrowRight,
+  CheckCircle2
+} from 'lucide-vue-next'
+
 import { getStudentDashboard } from '@/api/dashboard'
 import type { StudentDashboardData } from '@/api/dashboard'
 
 const router = useRouter()
+
 const dashboardData = ref<StudentDashboardData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
+
   return date.toLocaleDateString('ru-RU', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit'
   })
 }
 
-const getGradeColor = (grade: number, maxGrade: number = 10) => {
+const getGradeVariant = (grade: number, maxGrade: number = 10) => {
   const percentage = (grade / maxGrade) * 100
-  if (percentage >= 80) return '#27ae60'
-  if (percentage >= 60) return '#f39c12'
-  return '#e74c3c'
+
+  if (percentage >= 80) return 'success'
+  if (percentage >= 60) return 'warning'
+
+  return 'danger'
 }
+
+const stats = computed(() => {
+  if (!dashboardData.value) return []
+
+  return [
+    {
+      label: 'Всего заданий',
+      value: dashboardData.value.stats.total_assignments,
+      icon: BookOpen,
+      color: 'primary'
+    },
+    {
+      label: 'Выполнено',
+      value: dashboardData.value.stats.completed_count,
+      icon: CheckCircle2,
+      color: 'success'
+    },
+    {
+      label: 'Средний балл',
+      value: dashboardData.value.stats.average_grade,
+      icon: Trophy,
+      color: 'warning'
+    },
+    {
+      label: 'Прогресс',
+      value: `${dashboardData.value.stats.progress_percentage}%`,
+      icon: BarChart3,
+      color: 'purple'
+    }
+  ]
+})
 
 onMounted(async () => {
   try {
@@ -38,434 +83,1054 @@ onMounted(async () => {
 })
 
 const goToAssignment = (id: number) => {
-  router.push(`/student/assignments/${id}`)
+  router.push(`/app/student/assignments/${id}`)
 }
 
 const goToAssignments = () => {
-  router.push('/student/assignments')
+  router.push('/app/student/assignments')
 }
 </script>
 
 <template>
-  <div class="page">
-    <div class="dashboard-header">
-      <h1 class="page-title">Дашборд ученика</h1>
-      <p class="muted">Ваши задания, оценки и прогресс</p>
+  <div class="dashboard">
+    <!-- HERO -->
+    <header class="dashboard-hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="hero-dot"></span>
+          Личный кабинет ученика
+        </div>
+
+        <h1 class="hero-title">
+          Ваш прогресс и задания
+        </h1>
+
+        <p class="hero-subtitle">
+          Следите за дедлайнами, оценками и активностью по всем предметам.
+        </p>
+      </div>
+
+      <button
+        class="btn btn-primary hero-btn"
+        @click="goToAssignments"
+      >
+        <BookOpen :size="18" />
+        Все задания
+      </button>
+    </header>
+
+    <!-- LOADING -->
+    <div v-if="loading" class="skeleton-grid">
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="skeleton-card"
+      ></div>
     </div>
 
-    <div v-if="loading" class="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="dashboardData" class="dashboard-grid">
-      
-      <!-- Блок 1: Активные задания -->
-      <div class="card active-card">
-        <div class="card-header">
-          <h2 class="card-title">📚 Активные задания</h2>
-          <button class="btn btn-outline btn-sm" @click="goToAssignments">
-            Все задания
-          </button>
+    <!-- ERROR -->
+    <div v-else-if="error" class="error-state">
+      {{ error }}
+    </div>
+
+    <!-- CONTENT -->
+    <div v-else-if="dashboardData">
+      <!-- STATS -->
+      <section class="stats-grid">
+        <div
+          v-for="item in stats"
+          :key="item.label"
+          class="stat-card"
+        >
+          <div class="stat-top">
+            <div class="stat-icon" :class="item.color">
+              <component :is="item.icon" :size="22" />
+            </div>
+          </div>
+
+          <div class="stat-value">
+            {{ item.value }}
+          </div>
+
+          <div class="stat-label">
+            {{ item.label }}
+          </div>
         </div>
-        <div v-if="dashboardData.active_assignments.length > 0" class="card-content">
-          <ul class="assignment-list">
-            <li v-for="item in dashboardData.active_assignments" :key="item.id" class="assignment-item">
-              <div class="assignment-info">
-                <span class="assignment-title">{{ item.assignment_title }}</span>
-                <span class="assignment-tutor">{{ item.tutor_name }}</span>
-                <span class="assignment-subject" v-if="item.subject">{{ item.subject }}</span>
+      </section>
+
+      <!-- MAIN GRID -->
+      <section class="main-grid">
+        <!-- LEFT -->
+        <div class="left-column">
+          <!-- ACTIVE ASSIGNMENTS -->
+          <div class="dashboard-card primary-card">
+            <div class="card-header">
+              <div>
+                <h2>Активные задания</h2>
+                <p>Текущие задания с дедлайнами</p>
               </div>
-              <div class="assignment-meta">
-                <span class="deadline-date">Дедлайн: {{ formatDate(item.deadline) }}</span>
-              </div>
-              <button class="btn btn-sm btn-primary" @click="goToAssignment(item.id)">
-                Перейти к заданию
+
+              <button
+                class="btn btn-outline btn-sm"
+                @click="goToAssignments"
+              >
+                Все задания
               </button>
-            </li>
-          </ul>
-        </div>
-        <div v-else class="empty-state">Нет активных заданий</div>
-      </div>
+            </div>
 
-      <!-- Блок 2: Ожидают оценки -->
-      <div class="card pending-card">
-        <div class="card-header">
-          <h2 class="card-title">⏳ Ожидают оценки</h2>
-        </div>
-        <div v-if="dashboardData.pending_grades.length > 0" class="card-content">
-          <ul class="pending-list">
-            <li v-for="item in dashboardData.pending_grades" :key="item.id" class="pending-item">
-              <div class="pending-info">
-                <span class="pending-title">{{ item.assignment_title }}</span>
-                <span class="pending-date">Сдано: {{ formatDate(item.submitted_at) }}</span>
-              </div>
-              <div class="pending-status">
-                <span class="status-badge pending">Ожидает проверки</span>
-              </div>
-            </li>
-          </ul>
-        </div>
-        <div v-else class="empty-state">Все работы проверены</div>
-      </div>
+            <div
+              v-if="dashboardData.active_assignments.length"
+              class="assignment-list"
+            >
+              <div
+                v-for="item in dashboardData.active_assignments"
+                :key="item.id"
+                class="assignment-item"
+                @click="goToAssignment(item.id)"
+              >
+                <div class="assignment-main">
+                  <div class="assignment-title">
+                    {{ item.assignment_title }}
+                  </div>
 
-      <!-- Блок 3: Последние оценки -->
-      <div class="card grades-card">
-        <div class="card-header">
-          <h2 class="card-title">🎯 Последние оценки</h2>
-        </div>
-        <div v-if="dashboardData.recent_grades.length > 0" class="card-content">
-          <ul class="grades-list">
-            <li v-for="item in dashboardData.recent_grades" :key="item.id" class="grades-item">
-              <div class="grades-info">
-                <span class="grades-title">{{ item.assignment_title }}</span>
-                <span class="grades-date">{{ formatDate(item.submitted_at) }}</span>
-              </div>
-              <div class="grades-result">
-                <span 
-                  class="grade-badge" 
-                  :style="{ backgroundColor: getGradeColor(item.grade) }"
-                >
-                  {{ item.grade }}
-                </span>
-                <span v-if="item.tutor_comment" class="tutor-comment" :title="item.tutor_comment">
-                  💬 {{ item.tutor_comment.substring(0, 30) }}{{ item.tutor_comment.length > 30 ? '...' : '' }}
-                </span>
-              </div>
-              <button class="btn btn-sm btn-outline" @click="goToAssignment(item.id)">
-                Открыть
-              </button>
-            </li>
-          </ul>
-        </div>
-        <div v-else class="empty-state">Оценок пока нет</div>
-      </div>
+                  <div class="assignment-meta">
+                    <span>{{ item.tutor_name }}</span>
 
-      <!-- Блок 4: Статистика -->
-      <div class="card stats-card">
-        <div class="card-header">
-          <h2 class="card-title">📊 Статистика</h2>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-value">{{ dashboardData.stats.total_assignments }}</div>
-            <div class="stat-label">Всего заданий</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ dashboardData.stats.completed_count }}</div>
-            <div class="stat-label">Выполнено</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">{{ dashboardData.stats.average_grade }}</div>
-            <div class="stat-label">Средний балл</div>
-          </div>
-        </div>
-        
-        <!-- Прогресс бар -->
-        <div class="progress-section">
-          <div class="progress-label">
-            <span>Прогресс выполнения</span>
-            <span>{{ dashboardData.stats.progress_percentage }}%</span>
-          </div>
-          <div class="progress-bar">
-            <div 
-              class="progress-fill" 
-              :style="{ width: dashboardData.stats.progress_percentage + '%' }"
-            ></div>
-          </div>
-        </div>
-      </div>
+                    <span
+                      v-if="item.subject"
+                      class="subject-chip"
+                    >
+                      {{ item.subject }}
+                    </span>
+                  </div>
+                </div>
 
-      <!-- Блок 5: Мои репетиторы -->
-      <div class="card tutors-card">
-        <div class="card-header">
-          <h2 class="card-title">👨‍🏫 Мои репетиторы</h2>
-        </div>
-        <div v-if="dashboardData.my_tutors.length > 0" class="card-content">
-          <ul class="tutors-list">
-            <li v-for="tutor in dashboardData.my_tutors" :key="tutor.tutor_id" class="tutor-item">
-              <div class="tutor-info">
-                <span class="tutor-name">{{ tutor.tutor_name }}</span>
-              </div>
-              <div class="tutor-count">
-                {{ tutor.assignments_count }} зад.
-              </div>
-            </li>
-          </ul>
-        </div>
-        <div v-else class="empty-state">Репетиторов пока нет</div>
-      </div>
+                <div class="assignment-side">
+                  <div class="deadline-label">
+                    Дедлайн
+                  </div>
 
+                  <div class="deadline-date">
+                    {{ formatDate(item.deadline) }}
+                  </div>
+                </div>
+
+                <ArrowRight :size="16" class="arrow-icon" />
+              </div>
+            </div>
+
+            <div v-else class="empty-state">
+              Активных заданий нет
+            </div>
+          </div>
+
+          <!-- RECENT GRADES -->
+          <div class="dashboard-card primary-card">
+            <div class="card-header">
+              <div>
+                <h2>Последние оценки</h2>
+                <p>Недавно проверенные задания</p>
+              </div>
+            </div>
+
+            <div
+              v-if="dashboardData.recent_grades.length"
+              class="grades-list"
+            >
+              <div
+                v-for="item in dashboardData.recent_grades"
+                :key="item.id"
+                class="grade-item"
+              >
+                <div class="grade-main">
+                  <div class="grade-title">
+                    {{ item.assignment_title }}
+                  </div>
+
+                  <div class="grade-date">
+                    {{ formatDate(item.submitted_at) }}
+                  </div>
+
+                  <div
+                    v-if="item.tutor_comment"
+                    class="tutor-comment"
+                  >
+                    {{ item.tutor_comment }}
+                  </div>
+                </div>
+
+                <div class="grade-side">
+                  <div
+                    class="grade-badge"
+                    :class="getGradeVariant(item.grade)"
+                  >
+                    {{ item.grade }}
+                  </div>
+
+                  <button
+                    class="btn btn-outline btn-sm"
+                    @click="goToAssignment(item.id)"
+                  >
+                    Открыть
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state">
+              Оценок пока нет
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="right-column">
+          <!-- PROGRESS -->
+          <div class="dashboard-card secondary-card">
+            <div class="card-header">
+              <div>
+                <h2>Прогресс</h2>
+                <p>Ваш общий прогресс обучения</p>
+              </div>
+            </div>
+
+            <div class="progress-circle-wrapper">
+              <div class="progress-circle">
+                <div class="progress-inner">
+                  {{ dashboardData.stats.progress_percentage }}%
+                </div>
+              </div>
+            </div>
+
+            <div class="progress-info">
+              Выполнено
+              {{ dashboardData.stats.completed_count }}
+              из
+              {{ dashboardData.stats.total_assignments }}
+              заданий
+            </div>
+
+            <div class="progress-bar">
+              <div
+                class="progress-fill"
+                :style="{
+                  width:
+                    dashboardData.stats.progress_percentage + '%'
+                }"
+              ></div>
+            </div>
+          </div>
+
+          <!-- PENDING -->
+          <div class="dashboard-card secondary-card">
+            <div class="card-header">
+              <div>
+                <h2>Ожидают проверки</h2>
+                <p>Работы на проверке у преподавателя</p>
+              </div>
+            </div>
+
+            <div
+              v-if="dashboardData.pending_grades.length"
+              class="pending-list"
+            >
+              <div
+                v-for="item in dashboardData.pending_grades"
+                :key="item.id"
+                class="pending-item"
+              >
+                <div class="pending-main">
+                  <div class="pending-title">
+                    {{ item.assignment_title }}
+                  </div>
+
+                  <div class="pending-date">
+                    Сдано:
+                    {{ formatDate(item.submitted_at) }}
+                  </div>
+                </div>
+
+                <div class="pending-badge">
+                  Проверяется
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="ok-state">
+              Все работы проверены
+            </div>
+          </div>
+
+          <!-- TUTORS -->
+          <div class="dashboard-card secondary-card">
+            <div class="card-header">
+              <div>
+                <h2>Мои репетиторы</h2>
+                <p>Преподаватели и активность</p>
+              </div>
+            </div>
+
+            <div
+              v-if="dashboardData.my_tutors.length"
+              class="tutors-list"
+            >
+              <div
+                v-for="tutor in dashboardData.my_tutors"
+                :key="tutor.tutor_id"
+                class="tutor-item"
+              >
+                <div class="tutor-main">
+                  <div class="tutor-avatar">
+                    <GraduationCap :size="18" />
+                  </div>
+
+                  <div>
+                    <div class="tutor-name">
+                      {{ tutor.tutor_name }}
+                    </div>
+
+                    <div class="tutor-meta">
+                      Активный преподаватель
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tutor-count">
+                  {{ tutor.assignments_count }}
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state small">
+              Репетиторов пока нет
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-.dashboard-header {
-  margin-bottom: 24px;
+.dashboard {
+  padding: 32px;
+  max-width: 1480px;
+  margin: 0 auto;
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(30,58,138,0.04),
+      transparent 28%
+    ),
+    var(--bg);
 }
 
-.dashboard-grid {
+/* HERO */
+
+.dashboard-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+
+  padding: 32px;
+  margin-bottom: 32px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(30,58,138,0.08),
+      rgba(30,58,138,0.02)
+    );
+
+  border: 1px solid rgba(30,58,138,0.08);
+  border-radius: 28px;
+}
+
+.hero-content {
+  max-width: 700px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-bottom: 16px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  color: var(--primary);
+}
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 999px;
+
+  background: var(--primary);
+}
+
+.hero-title {
+  margin: 0;
+
+  font-size: 38px;
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+
+.hero-subtitle {
+  margin-top: 14px;
+
+  font-size: 16px;
+  line-height: 1.7;
+
+  color: var(--muted);
+}
+
+.hero-btn {
+  height: 48px;
+  border-radius: 14px;
+}
+
+/* STATS */
+
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
+
+  margin-bottom: 28px;
 }
 
-.card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.stat-card {
+  padding: 22px;
+
+  background: rgba(255,255,255,0.9);
+
+  backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: 24px;
+
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 14px 40px rgba(15,23,42,0.06);
+}
+
+.stat-top {
+  margin-bottom: 20px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+
+  border-radius: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon.primary {
+  background: rgba(30,58,138,0.10);
+  color: var(--primary);
+}
+
+.stat-icon.success {
+  background: rgba(16,185,129,0.10);
+  color: var(--success);
+}
+
+.stat-icon.warning {
+  background: rgba(245,158,11,0.10);
+  color: #d97706;
+}
+
+.stat-icon.purple {
+  background: rgba(139,92,246,0.10);
+  color: #7c3aed;
+}
+
+.stat-value {
+  font-size: 34px;
+  line-height: 1;
+
+  font-weight: 800;
+  letter-spacing: -0.04em;
+
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* MAIN GRID */
+
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 420px);
+  gap: 24px;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.right-column {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+}
+
+/* CARDS */
+
+.dashboard-card {
+  border-radius: 26px;
+  padding: 26px;
+
+  border: 1px solid var(--border);
+}
+
+.primary-card {
+  background: white;
+}
+
+.secondary-card {
+  background: #fcfcfd;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  gap: 16px;
+
+  margin-bottom: 24px;
 }
 
-.card-title {
+.card-header h2 {
+  margin: 0 0 4px;
+
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.card-header p {
   margin: 0;
+
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.card-content {
-  margin-top: 12px;
-}
+/* ASSIGNMENTS */
 
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.assignment-list {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.stat-item {
-  text-align: center;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
+.assignment-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 16px;
+
+  align-items: center;
+
+  padding: 18px;
+
+  border-radius: 18px;
+  border: 1px solid transparent;
+
+  cursor: pointer;
+
+  transition: all .18s ease;
 }
 
-.stat-value {
-  font-size: 24px;
+.assignment-item:hover {
+  background: rgba(30,58,138,0.04);
+
+  border-color: rgba(30,58,138,0.05);
+
+  transform: translateX(2px);
+}
+
+.assignment-title {
+  font-size: 15px;
   font-weight: 700;
-  color: #2c3e50;
-}
 
-.stat-label {
-  font-size: 11px;
-  color: #7f8c8d;
-  margin-top: 4px;
-}
-
-/* Progress Bar */
-.progress-section {
-  margin-top: 20px;
-}
-
-.progress-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #7f8c8d;
   margin-bottom: 8px;
-}
-
-.progress-bar {
-  height: 10px;
-  background: #ecf0f1;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #3498db, #2ecc71);
-  transition: width 0.3s ease;
-}
-
-/* Lists */
-.assignment-list,
-.pending-list,
-.grades-list,
-.tutors-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.assignment-item,
-.pending-item,
-.grades-item,
-.tutor-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.assignment-item:last-child,
-.pending-item:last-child,
-.grades-item:last-child,
-.tutor-item:last-child {
-  border-bottom: none;
-}
-
-.assignment-info,
-.pending-info,
-.grades-info,
-.tutor-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.assignment-title,
-.pending-title,
-.grades-title,
-.tutor-name {
-  font-weight: 500;
-  color: #2c3e50;
-}
-
-.assignment-tutor,
-.assignment-subject,
-.pending-date,
-.grades-date {
-  font-size: 13px;
-  color: #7f8c8d;
 }
 
 .assignment-meta {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.subject-chip {
+  padding: 4px 10px;
+
+  border-radius: 999px;
+
+  background: rgba(30,58,138,0.08);
+
+  color: var(--primary);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.assignment-side {
+  text-align: right;
+}
+
+.deadline-label {
+  font-size: 12px;
+  color: var(--muted);
+
+  margin-bottom: 4px;
 }
 
 .deadline-date {
   font-size: 13px;
-  color: #e74c3c;
-  font-weight: 500;
+  font-weight: 700;
+
+  color: var(--danger);
 }
 
-/* Pending Status */
-.pending-status {
+.arrow-icon {
+  color: var(--muted);
+}
+
+/* GRADES */
+
+.grades-list {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.status-badge {
-  font-size: 11px;
-  padding: 2px 8px;
+.grade-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+
+  padding: 18px;
+
+  border-radius: 18px;
+
+  background: #fafafa;
+}
+
+.grade-main {
+  flex: 1;
+}
+
+.grade-title {
+  font-size: 15px;
+  font-weight: 700;
+
+  margin-bottom: 6px;
+}
+
+.grade-date {
+  font-size: 13px;
+  color: var(--muted);
+
+  margin-bottom: 10px;
+}
+
+.tutor-comment {
+  font-size: 13px;
+  line-height: 1.6;
+
+  color: var(--text);
+
+  padding: 12px;
+
+  background: white;
+
   border-radius: 12px;
-  background: #ecf0f1;
-  color: #7f8c8d;
 }
 
-.status-badge.pending {
-  background: #f39c12;
+.grade-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  align-items: center;
+}
+
+.grade-badge {
+  width: 54px;
+  height: 54px;
+
+  border-radius: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  font-weight: 800;
+
   color: white;
 }
 
-/* Grades Result */
-.grades-result {
+.grade-badge.success {
+  background: var(--success);
+}
+
+.grade-badge.warning {
+  background: var(--reminder);
+}
+
+.grade-badge.danger {
+  background: var(--danger);
+}
+
+/* PROGRESS */
+
+.progress-circle-wrapper {
+  display: flex;
+  justify-content: center;
+
+  margin: 12px 0 20px;
+}
+
+.progress-circle {
+  width: 140px;
+  height: 140px;
+
+  border-radius: 999px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    radial-gradient(
+      white 58%,
+      transparent 60%
+    ),
+    conic-gradient(
+      var(--primary)
+      0%
+      calc(var(--progress, 75) * 1%),
+      #e5e7eb
+      0%
+    );
+}
+
+.progress-inner {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.progress-info {
+  text-align: center;
+
+  font-size: 14px;
+  color: var(--muted);
+
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  height: 10px;
+
+  border-radius: 999px;
+
+  overflow: hidden;
+
+  background: #eef2f7;
+}
+
+.progress-fill {
+  height: 100%;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--primary),
+      #3b82f6
+    );
+}
+
+/* PENDING */
+
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+
+  padding: 14px;
+
+  border-radius: 16px;
+
+  background: rgba(245,158,11,0.08);
+}
+
+.pending-title {
+  font-size: 14px;
+  font-weight: 700;
+
+  margin-bottom: 4px;
+}
+
+.pending-date {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pending-badge {
+  padding: 6px 12px;
+
+  border-radius: 999px;
+
+  background: rgba(245,158,11,0.14);
+
+  color: #b45309;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* TUTORS */
+
+.tutors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tutor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 14px;
+
+  border-radius: 16px;
+
+  background: white;
+}
+
+.tutor-main {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.grade-badge {
-  display: inline-flex;
+.tutor-avatar {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  display: flex;
   align-items: center;
   justify-content: center;
+
+  background: rgba(30,58,138,0.08);
+
+  color: var(--primary);
+}
+
+.tutor-name {
+  font-size: 14px;
+  font-weight: 700;
+
+  margin-bottom: 4px;
+}
+
+.tutor-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tutor-count {
   min-width: 36px;
   height: 36px;
-  border-radius: 50%;
-  color: white;
-  font-weight: 700;
-  font-size: 16px;
-}
 
-.tutor-comment {
-  font-size: 12px;
-  color: #7f8c8d;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Tutor Count */
-.tutor-count {
-  font-size: 13px;
-  color: #7f8c8d;
-  background: #f8f9fa;
-  padding: 4px 12px;
   border-radius: 12px;
-  align-self: flex-start;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(30,58,138,0.08);
+
+  color: var(--primary);
+
+  font-size: 13px;
+  font-weight: 700;
 }
+
+/* STATES */
 
 .empty-state {
+  padding: 36px 18px;
+
   text-align: center;
-  color: #95a5a6;
-  padding: 20px;
+
+  color: var(--muted);
+  font-size: 14px;
 }
 
-.loading,
-.error {
+.empty-state.small {
+  padding: 24px 12px;
+}
+
+.ok-state {
+  padding: 18px;
+
+  border-radius: 16px;
+
+  background: rgba(16,185,129,0.08);
+
+  color: var(--success);
+
   text-align: center;
-  padding: 40px;
-  font-size: 16px;
+
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.error {
-  color: #e74c3c;
+.error-state {
+  padding: 24px;
+
+  border-radius: 18px;
+
+  background: rgba(239,68,68,0.08);
+
+  color: var(--danger);
 }
 
-/* Buttons */
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
+/* SKELETON */
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
 }
 
-.btn-sm {
-  padding: 4px 12px;
-  font-size: 12px;
+.skeleton-card {
+  height: 160px;
+
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f3f4f6 25%,
+      #e5e7eb 37%,
+      #f3f4f6 63%
+    );
+
+  background-size: 400% 100%;
+
+  animation: shimmer 1.4s ease infinite;
 }
 
-.btn-primary {
-  background: #3498db;
-  color: white;
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
 }
 
-.btn-primary:hover {
-  background: #2980b9;
-}
+/* RESPONSIVE */
 
-.btn-outline {
-  background: transparent;
-  border: 1px solid #3498db;
-  color: #3498db;
-}
+@media (max-width: 1180px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-.btn-outline:hover {
-  background: #3498db;
-  color: white;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .dashboard-grid {
+  .main-grid {
     grid-template-columns: 1fr;
   }
-  
+
+  .right-column {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 18px;
+  }
+
+  .dashboard-hero {
+    flex-direction: column;
+    align-items: flex-start;
+
+    padding: 24px;
+  }
+
+  .hero-title {
+    font-size: 30px;
+  }
+
   .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .assignment-item {
+    grid-template-columns: 1fr;
+  }
+
+  .grade-item {
+    flex-direction: column;
+  }
+
+  .grade-side {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .dashboard-card {
+    padding: 20px;
   }
 }
 </style>

@@ -10,6 +10,7 @@ import TutorAssignmentsPage from '../pages/tutor/AssignmentsPage.vue'
 import TutorSchedulePage from '../pages/tutor/SchedulePage.vue'
 import TutorRemindersPage from '../pages/tutor/RemindersPage.vue'
 import TutorAnalyticsPage from '../pages/tutor/AnalyticsPage.vue'
+import StudentDashboardPage from '../pages/student/DashboardPage.vue'
 import StudentAssignmentsPage from '../pages/student/AssignmentsPage.vue'
 import StudentSchedulePage from '../pages/student/SchedulePage.vue'
 import StudentInvitationsPage from '../pages/student/InvitationsPage.vue'
@@ -18,7 +19,6 @@ import StudentRemindersPage from '../pages/student/RemindersPage.vue'
 import TutorAssignmentDetailPage from '../pages/tutor/AssignmentDetailPage.vue'
 import StudentSubmissionReviewPage from '../pages/tutor/StudentSubmissionReviewPage.vue'
 import StudentAssignmentDetailPage from '../pages/student/AssignmentDetailPage.vue'
-// Parents removed: only tutor + student.
 import { useAuthStore } from '../stores/auth'
 import { ROLE_NAV, type Role } from '../types/roles'
 
@@ -47,7 +47,6 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       { path: '', redirect: '/app/tutor' },
-      { path: 'student', redirect: '/app/student/assignments' },
       {
         path: 'tutor',
         component: TutorDashboardPage,
@@ -87,6 +86,11 @@ const routes: RouteRecordRaw[] = [
         path: 'tutor/analytics',
         component: TutorAnalyticsPage,
         meta: { requiresAuth: true, role: 'tutor' },
+      },
+      {
+        path: 'student',
+        component: StudentDashboardPage,
+        meta: { requiresAuth: true, role: 'student' },
       },
 
       {
