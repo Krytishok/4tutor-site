@@ -32,7 +32,11 @@ const formatDate = (dateString: string) => {
 }
 
 const getGradeVariant = (grade: number, maxGrade: number = 10) => {
-  const percentage = (grade / maxGrade) * 100
+  if (maxGrade == maxGrade){
+    
+  }
+  const percentage = grade / 100
+
 
   if (percentage >= 80) return 'success'
   if (percentage >= 60) return 'warning'
