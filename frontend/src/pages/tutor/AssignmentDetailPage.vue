@@ -82,7 +82,7 @@ const saveMainInfo = async () => {
       title: mainForm.title,
       description: mainForm.description,
       subject: mainForm.subject,
-      max_grade: mainForm.max_grade,
+      max_grade: 100,
     })
     assignment.value = { ...assignment.value, ...updated }
     editMode.value = false
@@ -288,7 +288,7 @@ const handleDeleteAssignment = async () => {
             </div>
             <div class="field field-inline">
               <label class="field-label">Максимальный балл</label>
-              <span v-if="!editMode" class="field-value">{{ assignment.max_grade ?? 10 }}</span>
+              <span v-if="!editMode" class="field-value">100</span>
               <input
                 v-else
                 v-model.number="mainForm.max_grade"
