@@ -115,6 +115,24 @@ export function uploadSubmissionFile(studentAssignmentId: number, file: File): P
   ).then(res => res.data)
 }
 
+export function downloadSubmissionFile(fileId: number): Promise<Blob> {
+  return http.get(`/v1/assignments/files/submission/${fileId}/download/`, {
+    responseType: 'blob',
+  }).then(res => res.data)
+}
+
+export function downloadAssignmentFile(fileId: number): Promise<Blob> {
+  return http.get(`/v1/assignments/files/assignment/${fileId}/download/`, {
+    responseType: 'blob',
+  }).then(res => res.data)
+}
+
+export function updateStudentComment(pk: number, studentComment: string): Promise<{ student_comment: string }> {
+  return http.patch(`/v1/assignments/student-assignments/${pk}/`, {
+    student_comment: studentComment,
+  }).then(res => res.data)
+}
+
 export function updateAssignment(
   id: number,
   payload: {

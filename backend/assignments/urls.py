@@ -8,5 +8,7 @@ urlpatterns = [
     path('student-assignments/', views.StudentAssignmentListView.as_view(), name='student-assignment-list'),
     path('student-assignments/<int:pk>/', views.StudentAssignmentDetailView.as_view(), name='student-assignment-detail'),
     path('student-assignments/<int:pk>/upload/', views.SubmissionFileUploadView.as_view(), name='submission-upload'),
-    path('<int:pk>/assign-students/', views.AssignmentAssignStudentsView.as_view(), name='assign-students')
+    path('<int:pk>/assign-students/', views.AssignmentAssignStudentsView.as_view(), name='assign-students'),
+    path('files/submission/<int:file_id>/download/', views.SubmissionFileDownloadView.as_view(), name='submission-file-download'),
+    path('files/assignment/<int:file_id>/download/', views.AssignmentFileDownloadView.as_view(), name='assignment-file-download'),
 ]

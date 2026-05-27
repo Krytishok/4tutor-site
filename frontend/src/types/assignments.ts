@@ -39,6 +39,7 @@ export interface StudentAssignment {
   status: StudentAssignmentStatus
   grade: number | null
   tutor_comment: string
+  student_comment: string
   submitted_at: string | null
   submission_files?: SubmissionFile[]
 }
@@ -47,12 +48,13 @@ export interface StudentAssignmentListItem {
   id: number
   assignment: number
   assignment_title: string
-  tutor: { id: number; email: string; first_name: string; last_name: string } // добавлено
+  tutor: { id: number; email: string; first_name: string; last_name: string }
   student: { id: number; email: string; first_name: string; last_name: string }
   deadline: string
   status: StudentAssignmentStatus
   grade: number | null
   submitted_at: string | null
+  student_comment?: string
 }
 
 export interface SubmissionFile {

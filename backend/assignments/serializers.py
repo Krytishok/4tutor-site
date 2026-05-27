@@ -170,7 +170,7 @@ class StudentAssignmentListSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentAssignment
         fields = ('id', 'assignment', 'assignment_title', 'tutor', 'student',
-                  'deadline', 'status', 'grade', 'submitted_at')
+                  'deadline', 'status', 'grade', 'submitted_at', 'student_comment')
 
 
 class StudentAssignmentDetailSerializer(serializers.ModelSerializer):
@@ -211,6 +211,16 @@ class GradeAndCommentSerializer(serializers.ModelSerializer):
         if value > max_grade:
             raise serializers.ValidationError(f'Оценка не может быть больше {max_grade}.')
         return value
+
+
+class StudentCommentSerializer(serializers.ModelSerializer):
+    """Используется учеником для добавления комментария к заданию"""
+    class Meta:
+        model = StudentAssignment
+        fields = ('student_comment',)
+        extra_kwargs = {
+            'student_comment': {'required': True}
+        }
 
 
 

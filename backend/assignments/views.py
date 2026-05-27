@@ -2,9 +2,12 @@ from rest_framework import generics, status, parsers
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from django.http import FileResponse
+from django.conf import settings
 
 from transliterate import translit
 
@@ -19,6 +22,7 @@ from .serializers import (
     StudentAssignmentListSerializer,
     SubmissionFileSerializer,
     GradeAndCommentSerializer,
+    StudentCommentSerializer,
 )
 from .permissions import IsAssignmentTutorOrReadOnly, IsStudentAssignmentRecipient, IsTutor, IsStudent
 
@@ -262,6 +266,13 @@ class StudentAssignmentDetailView(generics.RetrieveUpdateAPIView):
             except ValidationError as e:
                 return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Ученик добавляет комментарий
+        if request.user.role == 'student' and 'student_comment' in request.data:
+            serializer = StudentCommentSerializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
         # Репетитор выставляет оценку
         if request.user.role == 'tutor':
             serializer = self.get_serializer(instance, data=request.data, partial=True)
@@ -359,3 +370,61 @@ class AssignmentAssignStudentsView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+class SubmissionFileDownloadView(APIView):
+    """Скачивание файла ответа ученика/репетитора"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_id):
+        submission_file = get_object_or_404(SubmissionFile, pk=file_id)
+        student_assignment = submission_file.student_assignment
+        
+        # Проверка прав доступа
+        if request.user.role == 'student':
+            if student_assignment.student != request.user:
+                raise PermissionDenied('Вы не можете просматривать этот файл.')
+        elif request.user.role == 'tutor':
+            if student_assignment.assignment.tutor != request.user:
+                raise PermissionDenied('Вы не можете просматривать этот файл.')
+        else:
+            raise PermissionDenied('Недостаточно прав.')
+        
+        # Открываем файл и возвращаем как скачивание
+        response = FileResponse(
+            submission_file.file.open('rb'),
+            as_attachment=True,
+            filename=submission_file.file.name.split('/')[-1]
+        )
+        return response
+
+
+class AssignmentFileDownloadView(APIView):
+    """Скачивание файла задания"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_id):
+        assignment_file = get_object_or_404(AssignmentFile, pk=file_id)
+        assignment = assignment_file.assignment
+        
+        # Проверка прав доступа
+        if request.user.role == 'student':
+            # Ученик может скачивать файлы только если задание назначено ему
+            if not StudentAssignment.objects.filter(
+                assignment=assignment,
+                student=request.user
+            ).exists():
+                raise PermissionDenied('Вы не можете просматривать этот файл.')
+        elif request.user.role == 'tutor':
+            if assignment.tutor != request.user:
+                raise PermissionDenied('Вы не можете просматривать этот файл.')
+        else:
+            raise PermissionDenied('Недостаточно прав.')
+        
+        # Открываем файл и возвращаем как скачивание
+        response = FileResponse(
+            assignment_file.file.open('rb'),
+            as_attachment=True,
+            filename=assignment_file.file.name.split('/')[-1]
+        )
+        return response

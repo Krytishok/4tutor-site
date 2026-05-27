@@ -62,6 +62,55 @@ const handleFileUpload = async (e: Event) => {
   }
 }
 
+const handleDownloadFile = async (f: SubmissionFile) => {
+  try {
+    const blob = await downloadSubmissionFile(f.id)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = f.file.split('/').pop() || 'file'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    alert(toApiError(e).message)
+  }
+}
+
+const handleDownloadAssignmentFile = async (f: AssignmentFile) => {
+  try {
+    const blob = await downloadAssignmentFile(f.id)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = f.file.split('/').pop() || 'file'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    alert(toApiError(e).message)
+  }
+}
+
+const studentCommentText = ref('')
+const savingComment = ref(false)
+
+const handleSaveStudentComment = async () => {
+  if (!sa.value) return
+  savingComment.value = true
+  try {
+    await updateStudentComment(sa.value.id, studentCommentText.value)
+    await fetch()
+    studentCommentText.value = ''
+  } catch (e) {
+    alert(toApiError(e).message)
+  } finally {
+    savingComment.value = false
+  }
+}
+
 const canSubmitComputed = computed(() => {
   if (!sa.value || sa.value.status !== 'assigned') return false
   return new Date(sa.value.deadline).getTime() > now.value

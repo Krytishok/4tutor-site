@@ -93,6 +93,7 @@ class StudentAssignment(models.Model):
     )
     grade = models.PositiveSmallIntegerField('Оценка', null=True, blank=True)
     tutor_comment = models.TextField('Комментарий репетитора', blank=True)
+    student_comment = models.TextField('Комментарий ученика', blank=True)
     submitted_at = models.DateTimeField('Время сдачи', null=True, blank=True)
 
     class Meta:
