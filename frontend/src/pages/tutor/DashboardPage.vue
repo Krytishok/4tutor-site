@@ -93,7 +93,7 @@ const goToStudents = () => {
 }
 
 const createNewAssignment = () => {
-  router.push('/app/tutor/assignments/create')
+  router.push('/app/tutor/assignments')
 }
 </script>
 

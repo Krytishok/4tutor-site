@@ -185,7 +185,7 @@ onMounted(async () => {
     <!-- Заголовок -->
     <header class="page-header">
       <div>
-        <h1 class="page-title">📊 Аналитика</h1>
+        <h1 class="page-title">Аналитика</h1>
         <p class="page-subtitle">
           Прогресс учеников: средний балл, процент выполненных работ, динамика по заданиям.
         </p>

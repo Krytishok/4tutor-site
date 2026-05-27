@@ -21,7 +21,7 @@ const loading = ref(true)
 const errorMsg = ref('')
 const saveMsg = ref('')
 
-// Режим редактирования основных полей
+
 const editMode = ref(false)
 const mainForm = reactive({
   title: '',
