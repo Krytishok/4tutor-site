@@ -8,17 +8,16 @@ import TutorDashboardPage from '../pages/tutor/DashboardPage.vue'
 import TutorStudentsPage from '../pages/tutor/StudentsPage.vue'
 import TutorAssignmentsPage from '../pages/tutor/AssignmentsPage.vue'
 import TutorSchedulePage from '../pages/tutor/SchedulePage.vue'
-import TutorRemindersPage from '../pages/tutor/RemindersPage.vue'
 import TutorAnalyticsPage from '../pages/tutor/AnalyticsPage.vue'
 import StudentDashboardPage from '../pages/student/DashboardPage.vue'
 import StudentAssignmentsPage from '../pages/student/AssignmentsPage.vue'
 import StudentSchedulePage from '../pages/student/SchedulePage.vue'
 import StudentInvitationsPage from '../pages/student/InvitationsPage.vue'
 import StudentResultsPage from '../pages/student/ResultsPage.vue'
-import StudentRemindersPage from '../pages/student/RemindersPage.vue'
 import TutorAssignmentDetailPage from '../pages/tutor/AssignmentDetailPage.vue'
 import StudentSubmissionReviewPage from '../pages/tutor/StudentSubmissionReviewPage.vue'
 import StudentAssignmentDetailPage from '../pages/student/AssignmentDetailPage.vue'
+import AchievementsPage from '@/pages/student/AchievementsPage.vue'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_NAV, type Role } from '../types/roles'
 
@@ -78,11 +77,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, role: 'tutor' },
       },
       {
-        path: 'tutor/reminders',
-        component: TutorRemindersPage,
-        meta: { requiresAuth: true, role: 'tutor' },
-      },
-      {
         path: 'tutor/analytics',
         component: TutorAnalyticsPage,
         meta: { requiresAuth: true, role: 'tutor' },
@@ -120,8 +114,8 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, role: 'student' },
       },
       {
-        path: 'student/reminders',
-        component: StudentRemindersPage,
+        path: 'student/achievements',
+        component: AchievementsPage,
         meta: { requiresAuth: true, role: 'student' },
       },
 
