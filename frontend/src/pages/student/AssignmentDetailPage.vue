@@ -21,7 +21,6 @@ const showConfirmDialog = ref(false)
 const fileNameFromUrl = (url: string) => decodeURIComponent(url.split('/').pop() || 'файл')
 
 const downloadAssignmentFile = (file: AssignmentFile) => {
-  // Используем новый защищённый эндпоинт
   const downloadUrl = `/api/v1/assignments/assignment-files/${file.id}/download/`
   downloadFile(downloadUrl, fileNameFromUrl(file.file))
 }

@@ -20,7 +20,6 @@ export const ROLE_NAV: Record<Role, NavItem[]> = {
     { to: '/app/student/invitations', label: 'Приглашения' },
     { to: '/app/student/assignments', label: 'Мои задания' },
     { to: '/app/student/schedule', label: 'Моё расписание' },
-    { to: '/app/student/achievements', label: 'Достижения' },
   ],
 }
 
