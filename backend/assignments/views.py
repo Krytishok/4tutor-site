@@ -1,3 +1,4 @@
+from django.http import FileResponse, Http404
 from rest_framework import generics, status, parsers
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -5,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from rest_framework.views import APIView
 
 from transliterate import translit
 
@@ -359,3 +361,58 @@ class AssignmentAssignStudentsView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
+    
+
+class AssignmentFileDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            file_obj = AssignmentFile.objects.select_related('assignment__tutor').get(pk=pk)
+        except AssignmentFile.DoesNotExist:
+            raise Http404
+
+        user = request.user
+        assignment = file_obj.assignment
+        tutor = assignment.tutor
+
+        # Права: репетитор (владелец) или ученик, которому назначено задание
+        if user.role == 'tutor' and user == tutor:
+            pass
+        elif user.role == 'student' and user.student_assignments.filter(assignment=assignment).exists():
+            pass
+        else:
+            raise PermissionDenied('У вас нет доступа к этому файлу')
+
+        response = FileResponse(file_obj.file.open(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{file_obj.file.name.split("/")[-1]}"'
+        return response
+
+
+class SubmissionFileDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            file_obj = SubmissionFile.objects.select_related(
+                'student_assignment__assignment__tutor',
+                'student_assignment__student'
+            ).get(pk=pk)
+        except SubmissionFile.DoesNotExist:
+            raise Http404
+
+        user = request.user
+        student_assignment = file_obj.student_assignment
+        assignment = student_assignment.assignment
+
+        # Права: ученик, отправивший файл, или репетитор, создавший задание
+        if user.role == 'student' and user == student_assignment.student:
+            pass
+        elif user.role == 'tutor' and user == assignment.tutor:
+            pass
+        else:
+            raise PermissionDenied('У вас нет доступа к этому файлу')
+
+        response = FileResponse(file_obj.file.open(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{file_obj.file.name.split("/")[-1]}"'
+        return response

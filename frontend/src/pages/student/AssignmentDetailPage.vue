@@ -3,8 +3,8 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getStudentAssignmentDetail, submitAssignment, uploadSubmissionFile } from '@/api/assignments'
-import type { StudentAssignment } from '@/types/assignments'
-import { toApiError } from '@/api/http'
+import type { StudentAssignment, AssignmentFile, SubmissionFile } from '@/types/assignments'
+import { toApiError, downloadFile } from '@/api/http'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +17,19 @@ const uploadLoading = ref(false)
 
 // Подтверждение отправки
 const showConfirmDialog = ref(false)
+
+const fileNameFromUrl = (url: string) => decodeURIComponent(url.split('/').pop() || 'файл')
+
+const downloadAssignmentFile = (file: AssignmentFile) => {
+  // Используем новый защищённый эндпоинт
+  const downloadUrl = `/api/v1/assignments/assignment-files/${file.id}/download/`
+  downloadFile(downloadUrl, fileNameFromUrl(file.file))
+}
+
+const downloadSubmissionFile = (file: SubmissionFile) => {
+  const downloadUrl = `/api/v1/assignments/submission-files/${file.id}/download/`
+  downloadFile(downloadUrl, fileNameFromUrl(file.file))
+}
 
 // Таймер для пересчёта оставшегося времени
 const now = ref(Date.now())
@@ -161,11 +174,11 @@ onBeforeUnmount(() => {
         <div class="file-list">
           <a
             v-for="f in sa.assignment.files" :key="f.id"
-            :href="f.file" target="_blank" class="file-item"
+            target="_blank" class="file-item"
             :title="f.file.split('/').pop()"
           >
             <span class="file-icon">📄</span>
-            <span class="file-name">{{ f.file.split('/').pop() }}</span>
+            <span class="file-name" @click="downloadAssignmentFile(f)">{{ fileNameFromUrl(f.file) }}</span>
           </a>
         </div>
       </div>
@@ -185,11 +198,11 @@ onBeforeUnmount(() => {
         <div v-if="sa.submission_files?.length" class="file-list">
           <a
             v-for="f in sa.submission_files" :key="f.id"
-            :href="f.file" target="_blank" class="file-item"
+            target="_blank" class="file-item"
             :title="f.file.split('/').pop()"
           >
             <span class="file-icon">📄</span>
-            <span class="file-name">{{ f.file.split('/').pop() }}</span>
+            <span class="file-name" @click="downloadSubmissionFile(f)">{{ fileNameFromUrl(f.file) }}</span>
           </a>
         </div>
         <p v-else class="muted">Файлов пока нет</p>

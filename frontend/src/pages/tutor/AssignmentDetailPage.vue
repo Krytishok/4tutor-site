@@ -9,7 +9,7 @@ import {
   deleteAssignment,
 } from '@/api/assignments'
 import type { Assignment, AssignmentFile, StudentAssignment } from '@/types/assignments'
-import { toApiError } from '@/api/http'
+import { toApiError, downloadFile } from '@/api/http'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +29,15 @@ const mainForm = reactive({
   subject: '',
   max_grade: 10,
 })
+
+
+const fileNameFromUrl = (url: string) => decodeURIComponent(url.split('/').pop() || 'файл')
+
+const downloadAssignmentFile = (file: AssignmentFile) => {
+  // Используем новый защищённый эндпоинт
+  const downloadUrl = `/api/v1/assignments/assignment-files/${file.id}/download/`
+  downloadFile(downloadUrl, fileNameFromUrl(file.file))
+}
 
 // Загрузка данных
 const fetchAssignment = async () => {
@@ -313,9 +322,11 @@ const handleDeleteAssignment = async () => {
                 :key="file.id"
                 class="file-item"
               >
-                <a :href="file.file" target="_blank" class="file-link">
+                <a target="_blank" class="file-link">
                   <span class="file-icon">📄</span>
-                  <span class="file-name">{{ decodeURIComponent(file.file.split('/').pop() || 'файл') }}</span>
+                  <span class="file-name" @click="downloadAssignmentFile(file)">
+                    {{ fileNameFromUrl(file.file) }}
+                  </span>
                 </a>
                 <button
                   class="btn btn-icon-only"

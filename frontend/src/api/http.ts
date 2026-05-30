@@ -112,3 +112,24 @@ export function toApiError(err: unknown): ApiError {
 
   return { message: 'Неизвестная ошибка' }
 }
+
+export async function downloadFile(url: string, filename: string) {
+  const token = getAccessToken()
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`Не удалось скачать файл: ${response.statusText}`)
+  }
+  const blob = await response.blob()
+  const link = document.createElement('a')
+  const objectUrl = URL.createObjectURL(blob)
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(objectUrl)
+}

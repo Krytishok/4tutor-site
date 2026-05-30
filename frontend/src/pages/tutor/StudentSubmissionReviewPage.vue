@@ -3,8 +3,8 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getStudentAssignmentDetail, gradeAssignment } from '@/api/assignments'
-import type { StudentAssignment } from '@/types/assignments'
-import { toApiError } from '@/api/http'
+import type { StudentAssignment, SubmissionFile } from '@/types/assignments'
+import { toApiError, downloadFile } from '@/api/http'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +22,13 @@ const gradeForm = reactive({
 })
 
 const isSubmitting = ref(false)
+
+const fileNameFromUrl = (url: string) => decodeURIComponent(url.split('/').pop() || 'файл')
+
+const downloadSubmissionFile = (file: SubmissionFile) => {
+  const downloadUrl = `/api/v1/assignments/submission-files/${file.id}/download/`
+  downloadFile(downloadUrl, fileNameFromUrl(file.file))
+}
 
 // Загрузка данных
 const fetchStudentAssignment = async () => {
@@ -173,9 +180,9 @@ const statusClasses: Record<string, string> = {
                 :key="file.id"
                 class="file-item"
               >
-                <a :href="file.file" target="_blank" class="file-link">
+                <a target="_blank" class="file-link">
                   <span class="file-icon">📄</span>
-                  <span class="file-name">{{ decodeURIComponent(file.file.split('/').pop() || 'файл') }}</span>
+                  <span class="file-name" @click="downloadSubmissionFile(file)">{{ fileNameFromUrl(file.file) }}</span>
                 </a>
               </div>
             </div>
