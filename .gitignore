@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 frontend/node_modules
+frontend/.vscode/
 frontend/dist
 frontend/dist/
 dist
@@ -114,3 +115,4 @@ docker-compose.override.yml
 frontend/dist/index.html
 frontend/dist/assets/index-CNSJl_qR.js
 .gitignore
+frontend/.vscode/extensions.json
