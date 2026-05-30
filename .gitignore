@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 frontend/node_modules
+frontend/dist/
 dist
 dist-ssr
 *.local
@@ -109,3 +110,6 @@ docker-compose.override.yml
 # Backup
 *.bak
 *.backup
+frontend/dist/index.html
+frontend/dist/assets/index-CNSJl_qR.js
+.gitignore
