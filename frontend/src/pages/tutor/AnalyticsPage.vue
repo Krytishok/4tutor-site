@@ -483,4 +483,30 @@ onMounted(async () => {
 }
 
 .text-center { text-align: center; }
+
+
+@media (max-width: 640px) {
+  .kpi-card {
+    padding: 12px;
+  }
+  .kpi-value {
+    font-size: 24px;
+  }
+  .chart-container {
+    height: 220px;
+  }
+  .modern-table th,
+  .modern-table td {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+  .student-cell .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+  .progress-cell {
+    min-width: 100px;
+  }
+}
 </style>

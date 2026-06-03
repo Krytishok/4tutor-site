@@ -355,3 +355,24 @@ a:hover {
   align-items: center;
   margin-bottom: 8px;
 }
+
+@media (max-width: 640px) {
+  .container {
+    padding: 12px;
+  }
+  .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .table th,
+  .table td {
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+  .card {
+    padding: 12px;
+  }
+  .page-title {
+    font-size: 22px;
+  }
+}

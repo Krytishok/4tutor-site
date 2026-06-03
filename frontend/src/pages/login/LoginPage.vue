@@ -32,7 +32,12 @@ const errors = ref<{
 // Правила валидации
 const validationRules = {
   email: { min: 5, max: 100, required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  password: { min: 6, max: 50, required: true, pattern: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{6,}$/ },
+  password: { 
+    min: 8,
+    max: 50, 
+    required: true, 
+    pattern: /^(?=.*[A-Za-zА-Яа-яЁё])(?=.*\d)[A-Za-zА-Яа-яЁё\d@$!%*#?&]{8,}$/ 
+  },
 }
 
 function validateField(field: 'email' | 'password', value: string): string | undefined {
@@ -170,7 +175,7 @@ async function submit() {
                   class="input" 
                   :class="{ 'input--error': errors.password, 'input--with-button': true }"
                   :type="showPassword ? 'text' : 'password'" 
-                  placeholder="Минимум 6 символов, буквы и цифры"
+                  placeholder="Минимум 8 символов, буквы и цифры"
                   maxlength="50"
                   @blur="handleBlur('password', password)"
                 />
@@ -195,7 +200,7 @@ async function submit() {
                   <div v-if="errors.password" class="error-tooltip error-tooltip--password">{{ errors.password }}</div>
                 </transition>
               </div>
-              <div class="hint">Пароль должен содержать минимум 6 символов, буквы и цифры</div>
+              <div class="hint">Пароль должен содержать минимум 8 символов, буквы и цифры</div>
             </div>
 
             <button 

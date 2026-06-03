@@ -718,4 +718,29 @@ onMounted(() => {
     min-width: 100%;
   }
 }
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .filters-grid {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .filter-field {
+    width: 100%;
+  }
+  .btn-clear {
+    align-self: flex-start;
+  }
+  .pagination-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .pagination-buttons {
+    justify-content: center;
+  }
+}
 </style>
