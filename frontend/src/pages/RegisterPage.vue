@@ -63,7 +63,12 @@ const validationRules: Record<'name' | 'surname' | 'email' | 'password' | 'subje
   name: { min: 2, max: 50, required: true, pattern: /^[\p{L}\p{M}\s'-]+$/u },
   surname: { min: 2, max: 50, required: true, pattern: /^[\p{L}\p{M}\s'-]+$/u },
   email: { min: 5, max: 100, required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  password: { min: 6, max: 50, required: true, pattern: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{6,}$/ },
+  password: { 
+    min: 8, 
+    max: 50, 
+    required: true, 
+    pattern: /^(?=.*[A-Za-zА-Яа-яЁё])(?=.*\d)[A-Za-zА-Яа-яЁё\d@$!%*#?&]{8,}$/ 
+  },
   subject: { min: 2, max: 100, required: true },
 }
 
@@ -287,7 +292,7 @@ function togglePasswordVisibility() {
                   class="input" 
                   :class="{ 'input--error': errors.password, 'input--with-button': true }"
                   :type="showPassword ? 'text' : 'password'" 
-                  placeholder="Минимум 6 символов, буквы и цифры"
+                  placeholder="Минимум 8 символов, буквы и цифры"
                   maxlength="50"
                   @blur="handleBlur('password', password)"
                 />
@@ -312,7 +317,7 @@ function togglePasswordVisibility() {
                   <div v-if="errors.password" class="error-tooltip error-tooltip--password">{{ errors.password }}</div>
                 </transition>
               </div>
-              <div class="hint">Пароль должен содержать минимум 6 символов, буквы и цифры</div>
+              <div class="hint">Пароль должен содержать минимум 8 символов, буквы и цифры</div>
             </div>
 
             <!-- Предмет (только для тьютора) -->
@@ -606,7 +611,7 @@ function togglePasswordVisibility() {
   font-size: 15px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
-  color: white;
+  color: rgb(0, 0, 0);
   font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   width: 100%;

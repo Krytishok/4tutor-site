@@ -183,3 +183,21 @@ onMounted(fetch)
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+  }
+  .filters-grid {
+    flex-direction: column;
+  }
+  .filter-field {
+    width: 100%;
+  }
+  .pagination-bar {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+</style>

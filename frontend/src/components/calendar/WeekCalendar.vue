@@ -470,4 +470,33 @@ const weekLabel = computed(() => {
 .event--compact .event-meta {
   display: none;
 }
+
+@media (max-width: 768px) {
+  .week-grid {
+    overflow-x: auto;
+  }
+  .week-header,
+  .week-body {
+    min-width: 800px; /* Фиксируем общую ширину, чтобы колонки не сжимались */
+  }
+  .day-column {
+    min-width: 200px;
+  }
+  .time-axis {
+    width: 70px;
+  }
+  .time-label {
+    font-size: 10px;
+    padding: 6px 4px;
+  }
+  .event {
+    padding: 4px 6px;
+  }
+  .event-title {
+    font-size: 11px;
+  }
+  .event-time {
+    font-size: 9px;
+  }
+}
 </style>
