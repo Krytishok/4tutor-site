@@ -12,3 +12,4 @@ sqlparse==0.5.3
 transliterate==1.10.2
 typing_extensions==4.15.0
 tzdata==2025.2
+gunicorn==23.0.0
